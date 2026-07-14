@@ -2,3 +2,5 @@
 CCTV1,http://69.30.245.50/live/cctv1.m3u8
 CCTV5,http://69.30.245.50/live/cctv5.m3u8
 Migu,https://live.666666.zip/migu/1.m3u8
+oneballtv1,https://live.666666.zip/weixing/1.m3u8
+oneballtv2,https://hls.live123.fans/live/4459812.m3u8

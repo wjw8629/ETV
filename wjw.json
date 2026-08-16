@@ -13,6 +13,16 @@
       "ext": "Douban"
     },
     {
+      "name": "⭐瓜子",
+      "key": "Guazi",
+      "type": 3,
+      "api": "csp_GuaziAmns",
+      "searchable": 1,
+      "quickSearch": 1,
+      "changeable": 0,
+      "ext": "Guazi"
+    },
+    {
       "name": "📦超高清",
       "key": "AppV7Llq",
       "type": 3,

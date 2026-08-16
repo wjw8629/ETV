@@ -1,5 +1,5 @@
 {
-    "spider": "./jar/custom_spider.jar;md5;eed040a6247f375adbff7ec181f8e0d6",
+    "spider": "./jar/xyq_spider.jar;md5;eed040a6247f375adbff7ec181f8e0d6",
     "lives": [
         {
           "name": "live",

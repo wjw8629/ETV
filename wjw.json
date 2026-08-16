@@ -19,7 +19,7 @@
       "api": "csp_AppV7Amns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0,
+      "changeable": 1,
       "ext": "AppV7Llq"
     },
     {
@@ -29,7 +29,7 @@
       "api": "csp_JinPaiAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0
+      "changeable": 1
     },
     {
       "name": "🧩荐片",
@@ -38,7 +38,7 @@
       "api": "csp_JPianAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0,
+      "changeable": 1,
       "ext": "JPian"
     },
     {
@@ -48,7 +48,7 @@
       "api": "csp_DubkAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0,
+      "changeable": 1,
       "ext": "Dubk"
     },
     {
@@ -58,7 +58,7 @@
       "api": "csp_AiGuaAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0
+      "changeable": 1
     },
     {
       "name": "🌍U视",
@@ -67,7 +67,7 @@
       "api": "csp_YspAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0
+      "changeable": 1
     },
     {
       "name": "🌍欧乐",
@@ -76,7 +76,7 @@
       "api": "csp_OlyyAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0
+      "changeable": 1
     }
   ],
   "lives": [

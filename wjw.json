@@ -19,7 +19,7 @@
       "api": "csp_GuaziAmns",
       "searchable": 1,
       "quickSearch": 1,
-      "changeable": 0,
+      "changeable": 1,
       "ext": "Guazi"
     },
     {

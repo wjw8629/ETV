@@ -13,7 +13,7 @@
       "ext": "Douban"
     },
     {
-      "name": "📦嗷呜",
+      "name": "📦超高清",
       "key": "AppV7Llq",
       "type": 3,
       "api": "csp_AppV7Amns",
@@ -21,24 +21,6 @@
       "quickSearch": 1,
       "changeable": 0,
       "ext": "AppV7Llq"
-    },
-    {
-      "name": "🧩橘汁",
-      "key": "Woshinidie",
-      "type": 3,
-      "jar": "https://zl.wpscdn.cn/2026/08/08/space_img/36332287-01c5-4b74-85f0-0cb070ddd57a.png;md5;0e457c08ca3c9fa3d949921cb73bb1f5",
-      "api": "csp_Woshinidie",
-      "searchable": 1,
-      "quickSearch": 1,
-      "changeable": 0,
-      "ext": {
-        "abid": "2205",
-        "version": "3.0.2.3",
-        "pkg": "com.mxj.wylcjbxyx",
-        "md5": "090DA8F91D3F60CC6CB250D86F06FE12",
-        "sha1": "3DADB42485B7F864E766479ADA6B1176D81D8D73",
-        "site": "https://123-1349250429.cos.ap-shanghai.myqcloud.com/app.txt"
-      }
     },
     {
       "name": "🧩金牌",
@@ -95,7 +77,14 @@
       "searchable": 1,
       "quickSearch": 1,
       "changeable": 0
-    },
+    }
+  ],
+  "lives": [
+    {
+      "name": "live",
+          "type":"0",
+          "url":"./live.txt"
+    }
   ],
   "parses": [
     {

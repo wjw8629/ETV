@@ -1,5 +1,5 @@
 {
-  "spider": "./e.jar;md5;08c0d2859e15f94294b697869f4ef899",
+  "spider": "./e.jar",
   "sites": [
     {
       "name": "ETV",

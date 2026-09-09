@@ -65,7 +65,7 @@
       "type": 3,
       "api": "csp_Gz360",
       "searchable": 1,
-      "quickSearch": 0,
+      "quickSearch": 1,
       "filterable": 1
     },
     {

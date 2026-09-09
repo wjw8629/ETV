@@ -57,7 +57,7 @@
       "api": "csp_HkybSpider",
       "searchable": 1,
       "quickSearch": 1,
-      "filterable": 0
+      "filterable": 1
     },
     {
       "key": "瓜子影视",
@@ -65,8 +65,8 @@
       "type": 3,
       "api": "csp_Gz360",
       "searchable": 1,
-      "quickSearch": 0,
-      "filterable": 0
+      "quickSearch": 1,
+      "filterable": 1
     },
     {
       "key": "独播影视",
@@ -111,16 +111,6 @@
       "quickSearch": 1,
       "filterable": 1,
       "type": 3
-    },
-    {
-      "key": "push_agent",
-      "name": "手机 • 推送",
-      "type": 3,
-      "api": "csp_Push",
-      "searchable": 0,
-      "filterable": 1,
-      "changeable": 0,
-      "hide": 1
     }
   ],
   "lives": [

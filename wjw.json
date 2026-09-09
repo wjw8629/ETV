@@ -27,8 +27,8 @@
       "type": 3,
       "api": "csp_AppDrama",
       "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 1,
+      "quickSearch": 0,
+      "filterable": 0,
       "ext": {
         "appName": "小苹果",
         "publicKey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCduNEnfxGaLuQRk5ABzXHhPV43zi00sCHjLo8BYc+Wi6xXm2b4v0i28Sq4WlNCKhseft9fz8kO/qLr6/022o1RcuOU7e4GFL3U9WnNODwRBYSYWd+K8nqpI/tAUDmZEBGRWqjrc7x6aMl3A+xpnWkLbPCLsuhbuuUE3tv09oeOpwIDAQAB",
@@ -93,8 +93,8 @@
       "type": 3,
       "api": "csp_XBPQ",
       "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 1,
+      "quickSearch": 0,
+      "filterable": 0,
       "ext": {
         "请求头": "User-Agent$MOBILE_UA",
         "编码": "UTF-8",

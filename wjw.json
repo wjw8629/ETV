@@ -27,7 +27,7 @@
       "type": 3,
       "api": "csp_AppDrama",
       "searchable": 1,
-      "quickSearch": 1,
+      "quickSearch": 0,
       "filterable": 1,
       "ext": {
         "appName": "小苹果",
@@ -47,7 +47,7 @@
       "type": 3,
       "api": "csp_Gulu",
       "searchable": 1,
-      "quickSearch": 1,
+      "quickSearch": 0,
       "filterable": 1
     },
     {
@@ -56,26 +56,35 @@
       "type": 3,
       "api": "csp_HkybSpider",
       "searchable": 1,
-      "quickSearch": 1,
+      "quickSearch": 0,
       "filterable": 1
     },
     {
       "key": "瓜子影视",
       "name": "瓜子",
       "type": 3,
-      "api": "csp_Gz360"
+      "api": "csp_Gz360",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 1
     },
     {
       "key": "独播影视",
       "name": "独播",
       "type": 3,
-      "api": "csp_Duboku"
+      "api": "csp_Duboku",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 1
     },
     {
       "key": "金牌影视",
       "name": "金牌",
       "type": 3,
       "api": "csp_Jpys",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 1,
       "ext": "https://y2s52n7.com,https://m.hkybqufgh.com,https://m.sizhengxt.com,https://m.9zhoukj.com,https://m.sizhengxt.com,https://m.jiabaide.cn"
     },
     {
@@ -83,6 +92,9 @@
       "name": "永乐",
       "type": 3,
       "api": "csp_XBPQ",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 1,
       "ext": {
         "请求头": "User-Agent$MOBILE_UA",
         "编码": "UTF-8",
@@ -95,6 +107,9 @@
       "key": "荐片",
       "name": "荐片",
       "api": "csp_JianPian",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 1,
       "type": 3
     },
     {

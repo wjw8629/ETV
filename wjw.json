@@ -103,7 +103,6 @@
         "分类url": "https://www.ylys.tv/vodshow/{cateId}-{area}-{by}-{class}-{lang}-{letter}---{catePg}---{year}.html"
       }
     },
-{"key": "italkbbtv","name": "ITalkBB","type": 3,"api": "./py/ITalkBBTV.py","searchable": 1,"quickSearch": 1,"filterable": 0,"changeable": 1},
     {
       "key": "荐片",
       "name": "荐片",

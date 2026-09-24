@@ -1,7 +1,7 @@
 {
   "spider": "./spider.jar;md5;c0de87bb3f38b2ffc17ca643d2ce5eaf",
   "wallpaper": "./1.jpg",
-
+  "logo": "./logo.jpg",
   "sites": [
     {
       "key": "豆瓣",

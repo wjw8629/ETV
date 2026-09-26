@@ -33,7 +33,7 @@ jobs:
 
           output = []
 
-	  output.append("CCTV,#genre#")
+	      output.append("CCTV,#genre#")
 
           for i, line in enumerate(lines):
               if line.startswith("#EXTINF:") and i + 1 < len(lines):

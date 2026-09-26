@@ -137,10 +137,9 @@
     }
   ],
   "lives": [
-
-{"name": "temp",
+    {"name": "live",
       "type": "0",
-      "url": "./temp.txt"
+      "url": "./live.txt"
 }
   ],
   "parses": [

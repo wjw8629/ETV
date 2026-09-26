@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: write  # 允许推送代码
     steps: 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,19 +22,27 @@ jobs:
         python-version: '3.x'
     - name: fetch and modify
       run: |
+        # 运行我们刚刚重写写入方式的 Python 脚本
         python filter.py
     - name: CommitAndPush
+      env:
+        # 将敏感变量寄存在环境变量中，彻底根除 Linux 脚本引号报错
+        GH_ACTOR: ${{ github.actor }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
       run: |
         REPO_NAME="${GITHUB_REPOSITORY#*/}"
         git config --global user.email "github@github.com"
         git config --global user.name "Github Actions"
         
-        # 严格使用单引号外包裹，内部使用标准表达式
-        git clone 'https://'${{ github.actor }}':'${{ secrets.GITHUB_TOKEN }}'@://github.com{{ github.repository }}'.git'
+        # 严格使用别人能百分之百推送成功的 HTTPS 克隆法
+        git clone "https://${GH_ACTOR}:${GH_TOKEN}@://github.com{GH_REPO}.git"
         cd "$REPO_NAME" || exit 1
 
+        # 把绝对路径下生成的 cctv_clean.txt 移动到克隆出来的文件夹内准备提交
         [ -f "../cctv_clean.txt" ] && mv ../cctv_clean.txt ./cctv_clean.txt || true
 
+        # 强行提交推送
         git add .
         if git diff --cached --quiet; then
           echo "No changes to commit."

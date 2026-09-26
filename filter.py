@@ -1,45 +1,44 @@
 import urllib.request
 import ssl
+import os
 
 URL = "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 
 def main():
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
     try:
-        # 忽略可能存在的 SSL 证书验证问题，防止在服务器端请求中断
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        
         req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req, context=ctx, timeout=30) as response:
-            content = response.read().decode('utf-8')
+            content = response.read().decode('utf-8', errors='ignore')
     except:
         return
 
-    lines = content.splitlines()
+ 
+    lines = content.replace('\r\n', '\n').replace('\r', '\n').split('\n')
     txt_lines = ["央视CCTV,#genre"]
 
-    for i in range(len(lines)):
-        line = lines[i].strip()
-        
-        if line.startswith("#EXTINF:"):
-            # 严格以最后一个逗号来截取频道名字
-            name = line.split(",")[-1].strip() if "," in line else "未知频道"
+    for idx, line in enumerate(lines):
+        clean_line = line.strip()
+        if clean_line.startswith("http://") or clean_line.startswith("https://"):
+            name = "未知频道"
+            if idx > 0:
+                prev_line = lines[idx-1].strip()
+                if prev_line.startswith("#EXTINF:"):
+                    name = prev_line.split(",")[-1].strip()
+                else:
+                    name = prev_line[:20]
             
-            # 自动向后查找第一条可用的播放链接
-            next_url = ""
-            for j in range(i + 1, min(i + 6, len(lines))):
-                sub_line = lines[j].strip()
-                if sub_line.startswith("http://") or sub_line.startswith("https://"):
-                    next_url = sub_line
-                    break
-            
-            if next_url:
-                txt_lines.append(f"{name},{next_url}")
+            txt_lines.append(f"{name},{clean_line}")
 
-    if len(txt_lines) > 1:
-        with open("cctv_clean.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(txt_lines))
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(current_dir, "cctv_clean.txt")
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(txt_lines))
 
 if __name__ == "__main__":
     main()

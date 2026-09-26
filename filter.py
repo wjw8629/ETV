@@ -2,7 +2,7 @@ import urllib.request
 import os
 
 # 目标咪咕直播源网络地址
-URL = "https://githubusercontent.com"
+URL = "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 
 def main():
     try:

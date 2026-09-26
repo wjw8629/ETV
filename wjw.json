@@ -147,8 +147,8 @@
       "name": "荐片",
       "api": "csp_JianPian",
       "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 1,
+      "quickSearch": 0,
+      "filterable": 0,
       "type": 3
     }
   ],

@@ -25,5 +25,5 @@ jobs:
       run: |
         git config --global user.name "GitHub Action"
         git config --global user.email "action@github.com"
-        git add cctv_clean.txt
+        git add live.txt
         git diff-index --quiet HEAD || (git commit -m "自动更新：已拉取并转换为干净的TXT格式" && git push)

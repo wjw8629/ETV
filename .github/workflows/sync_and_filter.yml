@@ -33,7 +33,15 @@ jobs:
 
           output = []
 
+<<<<<<< Updated upstream
 	      output.append("CCTV,#genre#")
+=======
+<<<<<<< HEAD
+          output.append("CCTV,#genre#")
+=======
+	      output.append("CCTV,#genre#")
+>>>>>>> 417748f8fee2b21feb0a876c8c7e06247bfdb83f
+>>>>>>> Stashed changes
 
           for i, line in enumerate(lines):
               if line.startswith("#EXTINF:") and i + 1 < len(lines):

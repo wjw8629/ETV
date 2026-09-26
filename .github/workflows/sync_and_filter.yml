@@ -1,0 +1,29 @@
+name: 自动拉取并精简转换为TXT
+
+on:
+  schedule:
+    # 每天世界标准时间 13:00 自动运行（约等于北美东部时间早上 09:00）
+    - cron: '0 13 * * *'
+  workflow_dispatch: # 允许你随时手动点击按钮更新
+
+jobs:
+  build_txt:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出当前仓库代码
+      uses: actions/checkout@v4
+
+    - name: 初始化 Python 环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: 执行转换脚本（拉取M3U并转为TXT）
+      run: python filter.py
+
+    - name: 提交并推送到我的仓库
+      run: |
+        git config --global user.name "GitHub Action"
+        git config --global user.email "action@github.com"
+        git add cctv_clean.txt
+        git diff-index --quiet HEAD || (git commit -m "自动更新：已拉取并转换为干净的TXT格式" && git push)

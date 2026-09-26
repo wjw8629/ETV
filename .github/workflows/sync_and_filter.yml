@@ -1,52 +1,60 @@
-name: 自动拉取并精简转换为TXT
+name: Update live.txt
 
-on: 
-  schedule: 
-    # 每天世界标准时间 13:00 自动运行（严格对应北美东部时间早上 09:00）
-    - cron: '0 13 * * *'
+on:
+  schedule:
+    - cron: "0 9 * * *"
+      timezone: "America/Toronto"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  main:
-    name: update migu
+  update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write  # 允许推送代码
-    steps: 
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
-    - name: fetch and modify
-      run: |
-        # 运行我们刚刚重写写入方式的 Python 脚本
-        python filter.py
-    - name: CommitAndPush
-      env:
-        # 将敏感变量寄存在环境变量中，彻底根除 Linux 脚本引号报错
-        GH_ACTOR: ${{ github.actor }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_REPO: ${{ github.repository }}
-      run: |
-        REPO_NAME="${GITHUB_REPOSITORY#*/}"
-        git config --global user.email "github@github.com"
-        git config --global user.name "Github Actions"
-        
-        # 严格使用别人能百分之百推送成功的 HTTPS 克隆法
-        git clone "https://${GH_ACTOR}:${GH_TOKEN}@://github.com{GH_REPO}.git"
-        cd "$REPO_NAME" || exit 1
 
-        # 把绝对路径下生成的 cctv_clean.txt 移动到克隆出来的文件夹内准备提交
-        [ -f "../cctv_clean.txt" ] && mv ../cctv_clean.txt ./cctv_clean.txt || true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        # 强行提交推送
-        git add .
-        if git diff --cached --quiet; then
-          echo "No changes to commit."
-        else
-          git commit -m "Update: $(date +'%Y-%m-%d %H:%M:%S') UTC"
-          git push origin main
-        fi
+      - name: Download M3U
+        run: |
+          curl -L \
+            "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u" \
+            -o cctv.m3u
+
+      - name: Convert M3U to live.txt
+        run: |
+          python3 <<'PY'
+          import re
+
+          with open("cctv.m3u", "r", encoding="utf-8") as f:
+              lines = [x.strip() for x in f if x.strip()]
+
+          output = []
+
+          for i, line in enumerate(lines):
+              if line.startswith("#EXTINF:") and i + 1 < len(lines):
+                  url = lines[i + 1]
+
+                  if url.startswith(("http://", "https://")):
+                      name = line.split(",")[-1].strip()
+                      output.append(f"{name},{url}")
+
+          with open("live.txt", "w", encoding="utf-8") as f:
+              f.write("\n".join(output) + "\n")
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add live.txt
+
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Update live.txt"
+            git push
+          fi

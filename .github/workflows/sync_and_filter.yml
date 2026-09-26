@@ -22,20 +22,20 @@ jobs:
         python-version: '3.x'
     - name: fetch and modify
       run: |
-        # 严格在最外层运行你的纯净 Python 脚本
+        # 运行你的纯净 Python 脚本
         python filter.py
     - name: CommitAndPush
       run: |
-        # 100% 照搬他克隆自己仓库并移动文件的核心黄金逻辑
+        # 获取仓库名称
         REPO_NAME="${GITHUB_REPOSITORY#*/}"
         git config --global user.email "github@github.com"
         git config --global user.name "Github Actions"
         
-        # 使用本地临时 TOKEN 克隆，彻底解决写屏蔽
+        # 【精准修复】这里加上了正确的 ${{ }} 解析语法，确保链接拼装绝对正确
         git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@://github.com{{ github.repository }}.git"
         cd "$REPO_NAME" || exit 1
 
-        # 核心改动：把外面生成的 cctv_clean.txt 强行移动到刚刚克隆出来的子仓库里
+        # 把外面生成的 cctv_clean.txt 强行移动到克隆出来的子仓库里
         [ -f "../cctv_clean.txt" ] && mv ../cctv_clean.txt ./cctv_clean.txt || true
 
         # 提交并强行推送

@@ -2,28 +2,49 @@ name: 自动拉取并精简转换为TXT
 
 on:
   schedule:
-    # 每天世界标准时间 13:00 自动运行（约等于北美东部时间早上 09:00）
+    # 每天世界标准时间 13:00 自动运行（严格对应北美东部时间早上 09:00）
     - cron: '0 13 * * *'
-  workflow_dispatch: # 允许你随时手动点击按钮更新
+  workflow_dispatch: # 允许随时手动点击按钮更新
 
 jobs:
-  build_txt:
+  main:
+    name: 自动拉取转换为TXT
     runs-on: ubuntu-latest
-    steps:
-    - name: 检出当前仓库代码
+    timeout-minutes: 15
+    permissions:
+      contents: write  # 允许推送代码
+    steps: 
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: 初始化 Python 环境
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
     - name: 执行转换脚本（拉取M3U并转为TXT）
-      run: python filter.py
-
-    - name: 提交并推送到我的仓库
       run: |
-        git config --global user.name "GitHub Action"
-        git config --global user.email "action@github.com"
-        git add live.txt
-        git diff-index --quiet HEAD || (git commit -m "自动更新：已拉取并转换为干净的TXT格式" && git push)
+        python filter.py
+
+    - name: CommitAndPush
+      run: |
+        # 完美复制别人处理仓库克隆和推送的黄金逻辑
+        REPO_NAME="${GITHUB_REPOSITORY#*/}"
+        git config --global user.email "github@github.com"
+        git config --global user.name "Github Actions"
+        
+        # 使用本地临时 TOKEN 克隆，彻底解决 GitHub 的写入屏蔽
+        git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+        cd "$REPO_NAME" || exit 1
+
+        # 把上一步在外面生成的 txt 文件强行移动到克隆出来的仓库里覆盖
+        [ -f "../live.txt" ] && mv ../live.txt ./live.txt || true
+
+        # 提交更新
+        git add .
+        if git diff --cached --quiet; then
+          echo "No changes to commit."
+        else
+          git commit -m "Update: $(date +'%Y-%m-%d %H:%M:%S') UTC"
+          git push origin main
+        fi

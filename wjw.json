@@ -137,11 +137,11 @@
     }
   ],
   "lives": [
-    {"name": "live",
+    {"name": "CCTV",
       "type": "0",
       "url": "./live.txt"
 },
-{"name": "tem1",
+{"name": "TEMP",
       "type": "0",
       "url": "./temp.txt"
 }

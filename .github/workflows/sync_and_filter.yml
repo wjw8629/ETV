@@ -43,6 +43,12 @@ jobs:
                       name = line.split(",")[-1].strip()
                       output.append(f"{name},{url}")
 
+          # 加入同一 GitHub 目录下的 temp.txt
+          with open("temp.txt", "r", encoding="utf-8") as f:
+              temp_lines = [x.rstrip() for x in f if x.strip()]
+
+          output.extend(temp_lines)
+
           with open("live.txt", "w", encoding="utf-8") as f:
               f.write("\n".join(output) + "\n")
           PY

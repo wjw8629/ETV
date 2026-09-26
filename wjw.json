@@ -141,6 +141,10 @@
       "type": "0",
       "url": "./live.txt"
 }
+{"name": "temp",
+      "type": "0",
+      "url": "./temp.txt"
+}
   ],
   "parses": [
     {

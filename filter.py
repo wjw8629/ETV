@@ -1,13 +1,17 @@
 import urllib.request
-import os
+import ssl
 
-# 目标咪咕直播源网络地址
 URL = "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 
 def main():
     try:
-        req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        # 忽略可能存在的 SSL 证书验证问题，防止在服务器端请求中断
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req, context=ctx, timeout=30) as response:
             content = response.read().decode('utf-8')
     except:
         return
@@ -15,28 +19,27 @@ def main():
     lines = content.splitlines()
     txt_lines = ["央视CCTV,#genre"]
 
-    i = 0
-    while i < len(lines):
+    for i in range(len(lines)):
         line = lines[i].strip()
-        if not line:
-            i += 1
-            continue
-
+        
         if line.startswith("#EXTINF:"):
-            # 提取逗号后面的频道真实名称（例如：CCTV1）
+            # 严格以最后一个逗号来截取频道名字
             name = line.split(",")[-1].strip() if "," in line else "未知频道"
-            next_line = lines[i+1].strip() if i + 1 < len(lines) else ""
             
-            # 只要有播放链接，就写入 TXT 格式："频道名,链接"
-            if next_line and not next_line.startswith("#"):
-                txt_lines.append(f"{name},{next_line}")
-                i += 2
-                continue
-        i += 1
+            # 自动向后查找第一条可用的播放链接
+            next_url = ""
+            for j in range(i + 1, min(i + 6, len(lines))):
+                sub_line = lines[j].strip()
+                if sub_line.startswith("http://") or sub_line.startswith("https://"):
+                    next_url = sub_line
+                    break
+            
+            if next_url:
+                txt_lines.append(f"{name},{next_url}")
 
-    # 写入生成全新的纯净直播源 txt 文件
-    with open("cctv_clean.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(txt_lines))
+    if len(txt_lines) > 1:
+        with open("cctv_clean.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(txt_lines))
 
 if __name__ == "__main__":
     main()

@@ -140,12 +140,7 @@
     {"name": "CCTV",
       "type": "0",
       "url": "./live.txt"
-},
-{"name": "TEMP",
-      "type": "0",
-      "url": "./temp.txt"
 }
-
   ],
   "parses": [
     {

@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write  # 允许推送代码
+      contents: write
     steps: 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,23 +22,19 @@ jobs:
         python-version: '3.x'
     - name: fetch and modify
       run: |
-        # 运行你的纯净 Python 脚本
         python filter.py
     - name: CommitAndPush
       run: |
-        # 获取仓库名称
         REPO_NAME="${GITHUB_REPOSITORY#*/}"
         git config --global user.email "github@github.com"
         git config --global user.name "Github Actions"
         
-        # 【精准修复】这里加上了正确的 ${{ }} 解析语法，确保链接拼装绝对正确
-        git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@://github.com{{ github.repository }}.git"
+        # 严格使用单引号外包裹，内部使用标准表达式
+        git clone 'https://'${{ github.actor }}':'${{ secrets.GITHUB_TOKEN }}'@://github.com{{ github.repository }}'.git'
         cd "$REPO_NAME" || exit 1
 
-        # 把外面生成的 cctv_clean.txt 强行移动到克隆出来的子仓库里
         [ -f "../cctv_clean.txt" ] && mv ../cctv_clean.txt ./cctv_clean.txt || true
 
-        # 提交并强行推送
         git add .
         if git diff --cached --quiet; then
           echo "No changes to commit."

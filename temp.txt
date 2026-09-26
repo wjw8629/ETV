@@ -1,1 +1,2 @@
+tem,#genre#
 test,http://74.91.26.218:82/live/cctv1hd.m3u8

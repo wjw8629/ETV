@@ -15,6 +15,9 @@ CCTV14,http://74.91.26.218:82/live/cctv14hd.m3u8
 CCTV15,http://74.91.26.218:82/live/cctv15hd.m3u8
 CCTV17,http://74.91.26.218:82/live/cctv17hd.m3u8
 
+CA,#genre#
+CBCNEWS,https://amg00788-cbc-amg00788c4-xumo-us-3045.playouts.now.amagi.tv/master.m3u8
+
 
 
 

@@ -141,9 +141,9 @@
       "type": "0",
       "url": "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 },
-{"name": "LIVE",
+{"name": "TEMP",
       "type": "0",
-      "url": "./txt"
+      "url": "./live.txt"
 }
   ],
   "parses": [

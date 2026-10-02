@@ -139,7 +139,7 @@
   "lives": [
     {"name": "CCTV",
       "type": "0",
-      "url": "./live.txt"
+      "url": "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 }
   ],
   "parses": [

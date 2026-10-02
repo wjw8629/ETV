@@ -140,6 +140,10 @@
     {"name": "CCTV",
       "type": "0",
       "url": "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
+},
+{"name": "LIVE",
+      "type": "0",
+      "url": "./txt"
 }
   ],
   "parses": [

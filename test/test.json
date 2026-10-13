@@ -1,0 +1,14 @@
+{
+  "spider": "", 
+  "sites": [
+    {
+      "key": "duboku_js",
+      "name": "独播库 💻 电脑专用版",
+      "type": 3,
+      "api": "./duboku.js", 
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1
+    }
+  ]
+}

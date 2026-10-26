@@ -76,15 +76,6 @@ class Spider(Spider):
                         'vod_pic': pic_url,          
                         'vod_remarks': f'ID:{vid}'    
                     })
-
-                        
-                    # 4. 将清洗好的数据，打包塞入符合 Fongmi 规范的卡片列表里
-                    vod_list.append({
-                        'vod_id': vid,               # 核心：把挖出来的数字 ID (如4665) 传给下一集详情页
-                        'vod_name': name.strip(),     # 电视封面上显示的视频标题
-                        'vod_pic': pic_url,          # 封面图片直链
-                        'vod_remarks': f'ID:{vid}'    # 卡片右下角的备注信息
-                    })
                 
                 # 5. 把拼好的封面墙返回
                 result['list'] = vod_list

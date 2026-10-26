@@ -76,9 +76,9 @@ class Spider(Spider):
                         
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': home_team,        # 标题栏：只保留主场球队
+                        'vod_name': remarks_text,        # 标题栏：只保留主场球队
                         'vod_pic': pic_url,          
-                        'vod_remarks': remarks_text   # 角标栏：动态悬浮显示 “vs 客队名”
+                        'vod_remarks': home_team   # 角标栏：动态悬浮显示 “vs 客队名”
                     })
 
                 

@@ -86,8 +86,55 @@ class Spider(Spider):
             
         return result
 
+        # 核心：点击视频海报进入详情页，完美提取出“Full Match in En”和“Full Match”的集数按钮
     def detailContent(self, ids):
+        if not ids or not ids[0]:
+            return {'list': []}
+        
+        vid = ids[0]  # 拿到上一级传过来的数字 ID（例如 4659）
+        target_url = f"{self.host}/{vid}.html"  # 拼接出原网站该视频的完整路由
+        
+        try:
+            import requests
+            import re
+            
+            # 1. 爬取该视频单独的集数页面
+            r = requests.get(target_url, headers=self.header, timeout=self.timeout)
+            if r.status_code == 200:
+                html_content = r.text
+                
+                # 2. 🔍 正则第一步：缩小防线，精准斩断获取 <article class="infobv"> 的文本块
+                article_block = re.search(r'<article[^>]*class="infobv"[^>]*>([\s\S]*?)</article>', html_content)
+                
+                play_urls = []
+                if article_block:
+                    block_text = article_block.group(1)
+                    
+                    # 3. 🔍 正则第二步：在这个局部的分集块内部，精准捞取所有集数的 sid 数字和显示的按钮文本
+                    # 根据你发来的源码特征：匹配 href="...sid=17964" 并且捕获 > 与 < 之间的文本（如 Full Match in En）
+                    matches = re.findall(r'href="[^"]*sid=(\d+)"[^>]*>([\s\S]*?)</', block_text)
+                    
+                    for sid, ep_name in matches:
+                        # 4. 打包符合 Fongmi 规范的选集格式：“集数名称$选集独立sid”
+                        # 比如在电视上就会显示：[Full Match in En] 和 [Full Match]
+                        play_urls.append(f"{ep_name.strip()}${sid}")
+                
+                # 如果因为特殊原因没洗到任何分集，保底把自己作为单集吐出
+                if not play_urls:
+                    play_urls.append(f"播放正片${vid}")
+                
+                # 5. 打包将所有分集数据抛回给电视端
+                return {'list': [{
+                    'vod_id': vid,
+                    'vod_name': '体育高清详情集锦',
+                    'vod_play_from': '标签解密视频源',
+                    'vod_play_url': '#'.join(play_urls)  # ⚠️ 关键：多个集数按钮之间用 # 号完美隔开
+                }]}
+        except:
+            pass
+            
         return {'list': []}
+
 
     def playerContent(self, flag, id, vipFlags):
         return {'parse': 0, 'url': ''}

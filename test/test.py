@@ -5,9 +5,11 @@ from base.spider import Spider
 
 class Spider(Spider):
     def getName(self):
+        # 内部系统代号，保持干净的英文
         return 'SoccerFullSpider'
 
     def init(self, extend=""):
+        # 基础主域名配置
         self.host = 'https://soccerfull.net'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -29,19 +31,16 @@ class Spider(Spider):
 
     def homeContent(self, filter):
         result = {'class': [], 'list': []}
-        result['class'].append({'type_name': '最新', 'type_id': '/'})
-        result['class'].append({'type_name': '欧冠', 'type_id': '/cate/premier-league'})
-        result['class'].append({'type_name': '英超', 'type_id': '/cate/premier-league'})
-        result['class'].append({'type_name': '西甲', 'type_id': '/cate/laliga'})
-        result['class'].append({'type_name': '德甲', 'type_id': '/cate/bundesliga'})
-        result['class'].append({'type_name': '意甲', 'type_id': '/cate/serie-a'})
-        result['class'].append({'type_name': '法甲', 'type_id': '/cate/laliga'})
+        result['class'].append({'type_name': '最新赛事', 'type_id': '/'})
+        result['class'].append({'type_name': '英超联赛', 'type_id': '/premier-league.html'})
+        result['class'].append({'type_name': '西甲联赛', 'type_id': '/laliga.html'})
+        result['class'].append({'type_name': '欧冠剧场', 'type_id': '/champions-league.html'})
         return result
 
     def homeVideoContent(self):
         return {}
 
-    # 🔥 第二步调校：在这里执行“主队/客队”双文本切分逻辑
+    # 第二步修复：采用最高效、绝不报错的字符串拆分策略
     def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
@@ -62,21 +61,24 @@ class Spider(Spider):
                     
                     full_title = full_name.strip()
                     
-                    # 💡 核心切分：利用不区分大小写的正则，把“主队 vs 客队”拆开
-                    split_match = re.split(r'\s+[vV][sS]\s+', full_title, maxsplit=1)
-                    if len(split_match) == 2:
-                        home_team = split_match[0].strip()  # 主队名
-                        away_team = split_match[1].strip()  # 客队名
-                        remarks_text = f"vs {away_team}"    # 角标显示：vs 客队名
-                    else:
-                        home_team = full_title              # 保底：如果没有vs，显示全称
-                        remarks_text = "高清画质"
+                    # 💡 安全切分：不使用复杂的正则重切，直接使用 Python 原生的不区分大小写字符串拆分
+                    # 兼容主页和其他分类页的 vs / VS 空格
+                    home_team = full_title
+                    remarks_text = "高清画质"
+                    
+                    # 尝试寻找 vs 的分割点
+                    lower_title = full_title.lower()
+                    if " vs " in lower_title:
+                        idx = lower_title.find(" vs ")
+                        home_team = full_title[:idx].strip()
+                        away_team = full_title[idx+4:].strip()
+                        remarks_text = f"vs {away_team}"
                         
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': home_team,        # 标题栏：只显示主队，永远是主场球队
+                        'vod_name': home_team,        # 标题栏：只保留主场球队名字
                         'vod_pic': pic_url,          
-                        'vod_remarks': remarks_text   # 角标栏：精致悬浮显示“vs 客队名”
+                        'vod_remarks': remarks_text   # 图片悬浮标签：完美浮现 “vs 客队名”
                     })
                 
                 result['list'] = vod_list
@@ -85,7 +87,7 @@ class Spider(Spider):
             pass
         return result
 
-    # 🔥 第三步调校：在这里彻底改掉“赛事全场高清”的死板废话
+    # 第三步修复：动态获取网页真实的标题
     def detailContent(self, ids):
         if not ids or not ids:
             return {'list': []}
@@ -98,10 +100,9 @@ class Spider(Spider):
             if r.status_code == 200:
                 html_content = r.text
                 
-                # 顺手把网页里的完整比赛名字捞出来，作为详情页和播放器上方的真实抬头
-                # 匹配源码里的 <title>标签或者通过路径转换，这里直接截取网页的真实 <h1> 或 <title> 最精准
+                # 提取原网页真实的比赛全名作为播放抬头
                 title_match = re.search(r'<title>([^<]+)</title>', html_content)
-                real_video_name = title_match.group(1).split('-')[0].strip() if title_match else "体育精彩赛事"
+                real_video_name = title_match.group(1).split('|')[0].strip() if title_match else "体育精彩赛事"
 
                 article_block = re.search(r'<article[^>]*class="infobv"[^>]*>([\s\S]*?)</article>', html_content)
                 
@@ -119,9 +120,9 @@ class Spider(Spider):
                 
                 return {'list': [{
                     'vod_id': vid,
-                    'vod_name': real_video_name, # 💡 核心修改：变成真正的比赛名字！让你看的时候一目了然
+                    'vod_name': real_video_name, # 抬头显示完整比赛名称
                     'vod_pic': f"{self.host}/imgs/{vid.split('-')[-1].replace('.html', '')}.png", 
-                    'vod_play_from': '极速直链',    # 💡 线路名称改得极简，防止多余的 flag 干扰
+                    'vod_play_from': '极速直链',    # 干净的单线路名称
                     'vod_play_url': '#'.join(play_urls)  
                 }]}
         except:

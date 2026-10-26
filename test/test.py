@@ -49,17 +49,32 @@ class Spider(Spider):
                 
                 vod_list = []
                 for ep_path, pic_url, full_name in matches:
+                                    vod_list = []
+                for ep_path, pic_url, full_name in matches:
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                     
                     full_title = full_name.strip()
                     
-                    # 💡 提示：这里先不做任何切割处理，保底显示全名
+                    # 💡 【核心安全切分逻辑】
+                    # 使用不区分大小写的正则分割，最多只切一刀
+                    split_title = re.split(r'\s+[vV][sS]\s+', full_title, maxsplit=1)
+                    
+                    # ⚠️ 加上铁律保底：如果切成功了（有主队有客队），才进行切分展示
+                    if len(split_title) == 2:
+                        home_team = split_title[0].strip()   # 左边是主队名
+                        away_team = split_title[1].strip()   # 右边是客队名
+                        remarks_text = f"vs {away_team}"     # 角标栏显示：vs 客队
+                    else:
+                        # 🔒 保底防御：如果没有找到 vs 字样，直接显示网页原名，右下角写固定文本
+                        home_team = full_title
+                        remarks_text = "高清赛事"
+                        
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': full_title,        # 标题栏：直接显示全称
+                        'vod_name': home_team,        # 标题栏：只显示主场球队名字
                         'vod_pic': pic_url,          
-                        'vod_remarks': '高清赛事'       # 备注栏先写死固定文本
+                        'vod_remarks': remarks_text   # 图片悬浮标签：完美浮现 “vs 客队名”
                     })
                 
                 result['list'] = vod_list

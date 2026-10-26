@@ -88,61 +88,60 @@ class Spider(Spider):
             pass
         return result
 
-        # 3. 第三步：用户在电视上点击海报封面进入详情页，洗出没有任何换行错乱的 Full Match 按钮
+            # 3. 第三步核心：用户在电视上点击海报封面进入详情页，通过绝对路径，完美提取出集数按钮
     def detailContent(self, ids):
         if not ids or not ids:
             return {'list': []}
         
         vid = ids  # 拿到上一级传过来的完整网页路径（例如 /sunderland-vs-leeds-united-4659.html）
-        target_url = self.host + vid  # 100% 拼接出该场比赛网页的真实网址
+        target_url = self.host + vid  # 拼接出该场比赛网页的真实网址
         
         try:
             import requests
             import re
             
-            # 实时请求当前比赛详情页面的源码
+            # 请求该比赛播放页的源码
             r = requests.get(target_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
                 html_content = r.text
                 
-                # 💡 体验优化：直接用正则把网页里的真实比赛全名捞出来，作为详情页和播放器上方的真实抬头！
+                # A. 体验优化：直接用正则把网页里的真实比赛全名捞出来，作为详情页和播放器上方的真实抬头！
                 title_match = re.search(r'<title>([^<]+)</title>', html_content)
                 real_video_name = title_match.group(1).split('|')[0].strip() if title_match else "体育精彩赛事"
 
-                # 正则第一步：精准斩断并获取 <article class="infobv"> 的局部文本块
+                # B. 正则第一步：精准截取 <article class="infobv"> 的局部文本块
                 article_block = re.search(r'<article[^>]*class="infobv"[^>]*>([\s\S]*?)</article>', html_content)
                 
                 play_urls = []
                 if article_block:
                     block_text = article_block.group(1)
                     
-                    # 正则第二步：在分集块内部，精准捞取所有选集的 sid 数字和按钮文本
+                    # C. 正则第二步：在分集块内部，精准捞取所有选集的 sid 数字和按钮文本
                     matches = re.findall(r'href="[^"]*sid=(\d+)"[^>]*>([\s\S]*?)</', block_text)
                     
                     for sid, ep_name in matches:
-                        # 💡 强效清洗：彻底剔除掉我们之前在排查脚本里看到的 \r, \n 换行符以及两端多余空格，防止 UI 渲染崩溃
+                        # 💡 强效清洗：彻底剔除掉阻碍电视组件渲染的 \r, \n 换行符以及两端多余空格
                         clean_name = ep_name.replace('\r', '').replace('\n', '').strip()
-                        
                         # 打包成 Fongmi 标准集数格式：“集数名称$选集独立sid”
                         play_urls.append(f"{clean_name}${sid}")
                 
                 if not play_urls:
-                    # 保底处理：万一网页改版，把当前 vid 转换成单集作为按钮
-                    play_urls.append(f"全场正片$direct_play")
+                    # 保底处理
+                    play_urls.append(f"全场正片${vid}")
                 
                 # 返回符合 Fongmi 详情页标准的规范字典
                 return {'list': [{
                     'vod_id': vid,
-                    'vod_name': real_video_name, # 💡 抬头的“赛事全场高清”废话全部消失，变成真正的比赛名字！
+                    'vod_name': real_video_name, # 抬头显示完整比赛名称
                     'vod_pic': f"{self.host}/imgs/{vid.split('-')[-1].replace('.html', '')}.png", # 自动还原图片
-                    'vod_content': '赛事详情由网页 article 标签动态清洗解密。',
-                    'vod_play_from': '高清全场直链', # 线路名称改得极简，点击即播，没有任何多余的 flag 干扰
-                    'vod_play_url': '#'.join(play_urls)  # 多个集数按钮之间用 # 号完美隔开
+                    'vod_play_from': '极速直链',    # 干净的单线路名称，去掉多余的 flag 干扰
+                    'vod_play_url': '#'.join(play_urls)  # 用 # 号完美隔开集数按钮
                 }]}
         except:
             pass
             
         return {'list': []}
+
 
     # 4. 第四步：大结局播放解析！当用户在电视端点击具体某个集数按钮时触发
     def playerContent(self, flag, id, vipFlags):

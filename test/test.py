@@ -56,26 +56,31 @@ class Spider(Spider):
                     
                     full_title = full_name.strip()
                     
-                    # 💡 【核心安全切分逻辑】
-                    # 使用不区分大小写的正则分割，最多只切一刀
-                    split_title = re.split(r'\s+[vV][sS]\s+', full_title, maxsplit=1)
+                    # 💡 【全模糊安全切分】
+                    # 先统一转成小写来找位置，彻底无视大小写和两边到底有几个空格或符号
+                    lower_title = full_title.lower()
                     
-                    # ⚠️ 加上铁律保底：如果切成功了（有主队有客队），才进行切分展示
-                    if len(split_title) == 2:
-                        home_team = split_title[0].strip()   # 左边是主队名
-                        away_team = split_title[1].strip()   # 右边是客队名
-                        remarks_text = f"vs {away_team}"     # 角标栏显示：vs 客队
+                    if "vs" in lower_title:
+                        # 找到 vs 在字符串里的起始位置
+                        idx = lower_title.find("vs")
+                        # 左边切出主队，刮干净两端可能残留的空格或横线
+                        home_team = full_title[:idx].strip().rstrip('-').strip()
+                        # 右边切出客队，跳过 v 和 s 两个字母，同样刮干净多余符号
+                        away_team = full_title[idx+2:].strip().lstrip('-').strip()
+                        
+                        remarks_text = f"vs {away_team}"
                     else:
-                        # 🔒 保底防御：如果没有找到 vs 字样，直接显示网页原名，右下角写固定文本
+                        # 保底：万一真的没有 vs，原样输出
                         home_team = full_title
                         remarks_text = "高清赛事"
                         
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': home_team,        # 标题栏：只显示主场球队名字
+                        'vod_name': home_team,        # 标题栏：只保留主场球队
                         'vod_pic': pic_url,          
-                        'vod_remarks': remarks_text   # 图片悬浮标签：完美浮现 “vs 客队名”
+                        'vod_remarks': remarks_text   # 角标栏：动态悬浮显示 “vs 客队名”
                     })
+
                 
                 result['list'] = vod_list
                 result['total'] = len(vod_list)

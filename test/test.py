@@ -90,88 +90,99 @@ class Spider(Spider):
 
             # 3. 第三步核心：用户在电视上点击海报封面进入详情页，通过绝对路径，完美提取出集数按钮
     def detailContent(self, ids):
-        if not ids or not ids:
+        if not ids or not ids[0]:
             return {'list': []}
         
-        vid = ids  # 拿到上一级传过来的完整网页路径（例如 /sunderland-vs-leeds-united-4659.html）
-        target_url = self.host + vid  # 拼接出该场比赛网页的真实网址
+        vid = ids[0]  # 主视频ID（即 4580）
+        target_url = f"{self.host}/{vid}.html?sid={vid}"
         
         try:
-            import requests
-            import re
-            
-            # 请求该比赛播放页的源码
             r = requests.get(target_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
                 html_content = r.text
                 
-                # A. 体验优化：直接用正则把网页里的真实比赛全名捞出来，作为详情页和播放器上方的真实抬头！
-                title_match = re.search(r'<title>([^<]+)</title>', html_content)
-                real_video_name = title_match.group(1).split('|')[0].strip() if title_match else "体育精彩赛事"
-
-                # B. 正则第一步：精准截取 <article class="infobv"> 的局部文本块
+                # A. 先用正则卡死防线，精准抓取 <article class="infobv">...</article> 块
                 article_block = re.search(r'<article[^>]*class="infobv"[^>]*>([\s\S]*?)</article>', html_content)
                 
                 play_urls = []
                 if article_block:
                     block_text = article_block.group(1)
                     
-                    # C. 正则第二步：在分集块内部，精准捞取所有选集的 sid 数字和按钮文本
-                    matches = re.findall(r'href="[^"]*sid=(\d+)"[^>]*>([\s\S]*?)</', block_text)
+                    # B. 在该标签块内部，循环匹配所有分集的 sid 数字和集数名字
+                    # 匹配形如：href="...sid=17408" 并且获取标签之间的按钮名字（如“第一集”）
+                    matches = re.findall(r'href="[^"]*sid=(\d+)"[^>]*>([^<]+)<', block_text)
                     
                     for sid, ep_name in matches:
-                        # 💡 强效清洗：彻底剔除掉阻碍电视组件渲染的 \r, \n 换行符以及两端多余空格
-                        clean_name = ep_name.replace('\r', '').replace('\n', '').strip()
-                        # 打包成 Fongmi 标准集数格式：“集数名称$选集独立sid”
-                        play_urls.append(f"{clean_name}${sid}")
+                        # 拼装成 Fongmi 要求的格式：集数名称$选集ID
+                        play_urls.append(f"{ep_name.strip()}${sid}")
                 
+                # 如果因为网页改版没洗出来，保底把自己当前这一集作为单集吐给 APP 按钮
                 if not play_urls:
-                    # 保底处理
-                    play_urls.append(f"全场正片${vid}")
+                    play_urls.append(f"测试单集${vid}")
                 
-                # 返回符合 Fongmi 详情页标准的规范字典
                 return {'list': [{
                     'vod_id': vid,
-                    'vod_name': real_video_name, # 抬头显示完整比赛名称
-                    'vod_pic': f"{self.host}/imgs/{vid.split('-')[-1].replace('.html', '')}.png", # 自动还原图片
-                    'vod_play_from': '极速直链',    # 干净的单线路名称，去掉多余的 flag 干扰
-                    'vod_play_url': '#'.join(play_urls)  # 用 # 号完美隔开集数按钮
+                    'vod_name': '标签解密高清大片',
+                    'vod_pic': 'https://bdstatic.com',
+                    'vod_remarks': '连载中',
+                    'vod_content': '内容由 article 标签动态解密，利用后台请求白嫖实时过期的流媒体签名。',
+                    'vod_play_from': '解密播放源',
+                    'vod_play_url': '#'.join(play_urls)  # 用 # 号拼接电视端排开的所有分集按钮
                 }]}
-        except:
+        except Exception as e:
             pass
             
         return {'list': []}
 
-
-    # 4. 第四步：大结局播放解析！当用户在电视端点击具体某个集数按钮时触发
+    # 4. 播放解析核心：用户在电视上点击具体某集（如第2集）时立刻在后台实时抓取
     def playerContent(self, flag, id, vipFlags):
-        # 此时传进来的 id 就是我们在详情页打包给按钮的独立 sid 数字（例如 17964）
+        # 此时传进来的 id 就是上面匹配到的具体那一集的 sid (例如 17409)
+        ep_url = f"{self.host}/4580.html?sid={id}"
         
-        # 💡 顺藤摸瓜终点：直接替换并拼接出原网站存放于本地的公共 M3U8 直链地址！
-        real_m3u8_url = f"{self.host}/hls/{id}.m3u8"
-        
-        # 构造电视原生播放器（ExoPlayer / IJKPlayer）拉取切片流时必须携带的伪装 Headers，强破字节 CDN 的 403 拦截
-        player_headers = {
-            'User-Agent': self.header['User-Agent'],
-            'Referer': 'https://tiktok.com'  # 字节安全加速服务器强制校验的宿主域名
-        }
-        
-        # 完美交付
-        return {
-            'parse': 0,        # 0 代表让电视端直接进行原生内核硬解，不走任何多余嗅探，速度拉满
-            'url': real_m3u8_url,
-            'header': player_headers
-        }
-
+        try:
+            # 💡 核心破局：Python 在后台重新向该分集页面发送一次请求
+            # 网站后端以为是正常的浏览器点击，就会在返回的 HTML 源码里生成当前这一秒最新的、未过期的字节 CDN 签名！
+            r = requests.get(ep_url, headers=self.header, timeout=self.timeout)
+            if r.status_code == 200:
+                html_content = r.text
+                
+                # 从新页面源码中，用正则挖出刚出炉的、带长参数的 m3u8 地址
+                # 对应你在原网站源码里看到的：var m3u8Url = "/hls/17408.m3u8"
+                m3u8_match = re.search(r'var\s+m3u8Url\s*=\s*"([^"]+)"', html_content)
+                
+                final_url = ""
+                if m3u8_match:
+                    final_url = m3u8_match.group(1)
+                    if final_url.startswith("/"):
+                        final_url = self.host + final_url
+                else:
+                    # 保底正则：如果网页里的变量变了，直接用通用正则从网页源码里把含有字节 tiktokcdn.com 的长链接整串捞走
+                    cdn_match = re.search(r'(https://[-a-zA-Z0-9@:%._\+~#=]{1,256}\.tiktokcdn\.com/[^\s"\']+)', html_content)
+                    if cdn_match:
+                        final_url = cdn_match.group(1)
+                
+                if final_url:
+                    # 构造电视原生播放器（ExoPlayer）拉取切片流时必须携带的伪装 Headers，防止 403 拦截
+                    player_headers = {
+                        'User-Agent': self.header['User-Agent'],
+                        'Referer': 'https://tiktok.com'  # 字节安全服务器强制校验的来源网址
+                    }
+                    
+                    return {
+                        'parse': 0,        # 0 代表直接硬解秒播
+                        'url': final_url,  # 已经带有了最新 x-signature 且绝对不会黑屏的真实播放地址
+                        'header': player_headers
+                    }
+        except:
+            pass
+            
+        return {'parse': 0, 'url': ''}
 
     def searchContent(self, key, quick, pg="1"):
         return {'list': []}
 
-    def isVideoFormat(self, url):
-        pass
+    def fetch(self, url):
+        return None
 
-    def manualVideoCheck(self):
-        pass
-
-    def destroy(self):
-        pass
+    def localProxy(self, param):
+        return None

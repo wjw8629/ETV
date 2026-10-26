@@ -8,7 +8,6 @@ class Spider(Spider):
         return 'SoccerFullSpider'
 
     def init(self, extend=""):
-        # 全局站点主域名配置
         self.host = 'https://soccerfull.net'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -16,7 +15,7 @@ class Spider(Spider):
         }
         self.timeout = 10
 
-    # 1. 第一步：下发分类标签
+    # 1. 分类标签页
     def homeContent(self, filter):
         result = {'class': [], 'list': []}
         result['class'].append({'type_name': '最新', 'type_id': '/'})
@@ -31,7 +30,7 @@ class Spider(Spider):
     def homeVideoContent(self):
         return {}
 
-    # 2. 第二步：分类页面列表加载（完美兼容 h2/h3、多空格换行，并执行主客队调换视觉样式）
+    # 2. 分类页面列表：精准抓取并提取最稳妥的【纯数字ID】作为纽带
     def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
@@ -42,34 +41,33 @@ class Spider(Spider):
             r = requests.get(target_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
                 html_content = r.text
-                reg_rule = r'href="([^"]+-[0-9]+\.html)"[\s\S]*?src="([^"]+)"[\s\S]*?<(?:h2|h3)>([^<]+)</(?:h2|h3)>'
+                
+                # 终极容错正则：完美无视换行、连续多空格及标签差异，精准提取数字ID、图片、标题
+                reg_rule = r'href="([^"]+)-(\d+)\.html"[\s\S]*?src="([^"]+)"[\s\S]*?<(?:h2|h3)>([^<]+)</(?:h2|h3)>'
                 matches = re.findall(reg_rule, html_content)
                 
                 vod_list = []
-                for ep_path, pic_url, full_name in matches:
+                for ep_path, vid, pic_url, full_name in matches:
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                     
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    display_name = full_title
+                    home_team = full_title
                     remarks_text = "高清赛事"
                     
                     if "vs" in lower_title:
                         idx = lower_title.find("vs")
                         home_team = full_title[:idx].strip().rstrip('-').strip()
                         away_team = full_title[idx+2:].strip().lstrip('-').strip()
-                        
-                        # 完美保持你最满意的专属故意设计版式
-                        remarks_text = home_team
-                        display_name = f"vs {away_team}"
-                        
+                        remarks_text = f"vs {away_team}"
+                    
                     vod_list.append({
-                        'vod_id': ep_path,            
-                        'vod_name': home_team,        # 标题大字大字显示：“主场球队名”
+                        'vod_id': f"{vid}@{ep_path}", # 💡 巧妙打包：将数字ID与完整路径一同打包发走，防患于未然！
+                        'vod_name': home_team,        # 完美保持你最满意的故意互换排版
                         'vod_pic': pic_url,          
-                        'vod_remarks': display_name   # 角标贴片浮现：“vs 客队描述”
+                        'vod_remarks': remarks_text   
                     })
                 
                 result['list'] = vod_list
@@ -78,19 +76,24 @@ class Spider(Spider):
             pass
         return result
 
-    # 3. 第三步：用户点击海报封面进入详情页，智能识别路径，洗净换行符提取 Full Match 选集
+    # 3. 详情页选集清洗：直接使用安全剥离的路径请求，彻底排除 404
     def detailContent(self, ids):
         if not ids or not ids:
             return {'list': []}
         
-        vid = ids  
-        if vid.startswith("/"):
-            target_url = self.host + vid
-        elif ".html" in vid:
-            target_url = self.host + "/" + vid if not vid.startswith("/") else self.host + vid
+        raw_id = ids
+        
+        # 智能解包参数
+        if "@" in raw_id:
+            parts = raw_id.split("@")
+            vid = parts[0]
+            ep_path = parts[1]
         else:
-            target_url = f"{self.host}/{vid}.html"
+            vid = raw_id
+            ep_path = f"/{raw_id}.html" # 保底容错
             
+        target_url = self.host + ep_path if ep_path.startswith("/") else self.host + "/" + ep_path
+        
         try:
             r = requests.get(target_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
@@ -114,17 +117,18 @@ class Spider(Spider):
                     play_urls.append(f"全场正片${vid}")
                 
                 return {'list': [{
-                    'vod_id': vid,
-                    'vod_name': real_video_name, # 抬头精准显示比赛的真实对阵全称
-                    'vod_pic': f"{self.host}/imgs/{vid.split('-')[-1].replace('.html', '')}.png", 
+                    'vod_id': raw_id,
+                    'vod_name': real_video_name, 
+                    'vod_pic': f"{self.host}/imgs/{vid}.png", 
                     'vod_play_from': '极速直链',   
                     'vod_play_url': '#'.join(play_urls)  
                 }]}
         except:
             pass
+            
         return {'list': []}
 
-        # 4. 第四步：电视端全局搜索函数（纠错对齐版）
+    # 4. 全局搜索函数：使用完全相同的 reg_rule 提取和参数打包逻辑，实现完美对齐！
     def searchContent(self, key, quick, pg="1"):
         result = {'list': []}
         clean_key = key.strip().lower().replace(' ', '-')
@@ -134,18 +138,19 @@ class Spider(Spider):
             r = requests.get(search_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
                 html_content = r.text
-                reg_rule = r'href="([^"]+-[0-9]+\.html)"[\s\S]*?src="([^"]+)"[\s\S]*?<(?:h2|h3)>([^<]+)</(?:h2|h3)>'
+                
+                # 🔍 100% 对齐 categoryContent 的强效正则，保证抓取绝无遗漏
+                reg_rule = r'href="([^"]+)-(\d+)\.html"[\s\S]*?src="([^"]+)"[\s\S]*?<(?:h2|h3)>([^<]+)</(?:h2|h3)>'
                 matches = re.findall(reg_rule, html_content)
                 
                 vod_list = []
-                for ep_path, pic_url, full_name in matches:
+                for ep_path, vid, pic_url, full_name in matches:
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                     
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    # 默认保底
                     home_team = full_title
                     remarks_text = "搜索结果"
                     
@@ -154,15 +159,10 @@ class Spider(Spider):
                         home_team = full_title[:idx].strip().rstrip('-').strip()
                         away_team = full_title[idx+2:].strip().lstrip('-').strip()
                         remarks_text = f"vs {away_team}"
-                    
-                    # 💡 【核心对齐排错点】
-                    # 从搜索拿到的路径中，用正则把末尾的纯数字提取出来（例如从 /aston-villa-vs-manchester-city-4636.html 提取出 4636）
-                    vid_nums = re.findall(r'-(\d+)\.html', ep_path)
-                    final_vod_id = vid_nums[0] if vid_nums else ep_path # 如果提取到了纯数字，就传纯数字给详情页
                         
                     vod_list.append({
-                        'vod_id': final_vod_id,       # 🔥 核心修正：传纯数字作为 ID，完美对齐最早能用的版本
-                        'vod_name': home_team,        # 完美维持你最满意的故意互换排版
+                        'vod_id': f"{vid}@{ep_path}", # 💡 采用相同的双参数打包，让详情页直接完美解码！
+                        'vod_name': home_team,        
                         'vod_pic': pic_url,          
                         'vod_remarks': remarks_text   
                     })
@@ -171,25 +171,15 @@ class Spider(Spider):
             pass
         return result
 
-
-    # 5. 第四步大结局：点击按钮瞬间完成直链派发，带上伪装 Headers 让电视硬解秒播
+    # 5. 播放终点解析：点击集数按钮，派发直链并实现电视秒播
     def playerContent(self, flag, id, vipFlags):
         real_m3u8_url = f"{self.host}/hls/{id}.m3u8"
         player_headers = {
             'User-Agent': self.header['User-Agent'],
-            'Referer': 'https://tiktok.com'  # 突破字节云安全防盗链的关键密钥
+            'Referer': 'https://tiktok.com'  
         }
         return {
             'parse': 0,  
             'url': real_m3u8_url,
             'header': player_headers
         }
-
-    def isVideoFormat(self, url):
-        pass
-
-    def manualVideoCheck(self):
-        pass
-
-    def destroy(self):
-        pass

@@ -31,10 +31,13 @@ class Spider(Spider):
 
     def homeContent(self, filter):
         result = {'class': [], 'list': []}
-        result['class'].append({'type_name': '最新赛事', 'type_id': '/'})
-        result['class'].append({'type_name': '英超联赛', 'type_id': '/premier-league.html'})
-        result['class'].append({'type_name': '西甲联赛', 'type_id': '/laliga.html'})
-        result['class'].append({'type_name': '欧冠剧场', 'type_id': '/champions-league.html'})
+        result['class'].append({'type_name': '最新', 'type_id': '/'})
+        result['class'].append({'type_name': '欧冠', 'type_id': '/cate/premier-league'})
+        result['class'].append({'type_name': '英超', 'type_id': '/cate/premier-league'})
+        result['class'].append({'type_name': '西甲', 'type_id': '/cate/laliga'})
+        result['class'].append({'type_name': '德甲', 'type_id': '/cate/bundesliga'})
+        result['class'].append({'type_name': '意甲', 'type_id': '/cate/serie-a'})
+        result['class'].append({'type_name': '法甲', 'type_id': '/cate/laliga'})
         return result
 
     def homeVideoContent(self):

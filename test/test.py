@@ -124,7 +124,7 @@ class Spider(Spider):
             pass
         return {'list': []}
 
-    # 4. 第五步：电视端全局输入框精准搜索功能实现
+        # 4. 第四步：电视端全局搜索函数（纠错对齐版）
     def searchContent(self, key, quick, pg="1"):
         result = {'list': []}
         clean_key = key.strip().lower().replace(' ', '-')
@@ -145,27 +145,32 @@ class Spider(Spider):
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    display_name = full_title
+                    # 默认保底
+                    home_team = full_title
                     remarks_text = "搜索结果"
                     
                     if "vs" in lower_title:
                         idx = lower_title.find("vs")
                         home_team = full_title[:idx].strip().rstrip('-').strip()
                         away_team = full_title[idx+2:].strip().lstrip('-').strip()
-                        
-                        remarks_text = home_team
-                        display_name = f"vs {away_team}"
+                        remarks_text = f"vs {away_team}"
+                    
+                    # 💡 【核心对齐排错点】
+                    # 从搜索拿到的路径中，用正则把末尾的纯数字提取出来（例如从 /aston-villa-vs-manchester-city-4636.html 提取出 4636）
+                    vid_nums = re.findall(r'-(\d+)\.html', ep_path)
+                    final_vod_id = vid_nums[0] if vid_nums else ep_path # 如果提取到了纯数字，就传纯数字给详情页
                         
                     vod_list.append({
-                        'vod_id': ep_path,            
-                        'vod_name': home_team,        # 保持统一设计：大字显主队
+                        'vod_id': final_vod_id,       # 🔥 核心修正：传纯数字作为 ID，完美对齐最早能用的版本
+                        'vod_name': home_team,        # 完美维持你最满意的故意互换排版
                         'vod_pic': pic_url,          
-                        'vod_remarks': display_name   # 悬浮角标显客队
+                        'vod_remarks': remarks_text   
                     })
                 result['list'] = vod_list
         except:
             pass
         return result
+
 
     # 5. 第四步大结局：点击按钮瞬间完成直链派发，带上伪装 Headers 让电视硬解秒播
     def playerContent(self, flag, id, vipFlags):

@@ -55,16 +55,28 @@ class Spider(Spider):
             if r.status_code == 200:
                 html_content = r.text
                 
-                # 3. 🔍 精准正则：根据你发回的源码特征，完美套出 ID、图片路径和标题名字
-                # 匹配：href="/任意字符-数字.html" ... src="图片路径" ... <h3>标题</h3>
-                reg_rule = r'href="/[a-zA-Z0-9-]+-(\d+)\.html"[\s\S]*?src="([^"]+)"[\s\S]*?<h3>([^<]+)</h3>'
+                # 3. 🔍 升级版通用正则：同时完美兼容 <h2> 和 <h3> 标签
+                reg_rule = r'href="/[a-zA-Z0-9-]+-(\d+)\.html"[\s\S]*?src="([^"]+)"[\s\S]*?<(h2|h3)>([^<]+)</\3>'
                 matches = re.findall(reg_rule, html_content)
                 
                 vod_list = []
-                for vid, pic_url, name in matches:
+                for match_item in matches:
+                    vid = match_item[0]       # 挖出来的数字 ID (如4659)
+                    pic_url = match_item[1]   # 图片路径
+                    name = match_item[3]      # 匹配出来的真实标题（在第4个捕获组里）
+                    
                     # 自动补全可能存在的相对图片路径
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
+                        
+                    # 4. 将清洗好的数据，打包塞入符合 Fongmi 规范的卡片列表里
+                    vod_list.append({
+                        'vod_id': vid,               
+                        'vod_name': name.strip(),     
+                        'vod_pic': pic_url,          
+                        'vod_remarks': f'ID:{vid}'    
+                    })
+
                         
                     # 4. 将清洗好的数据，打包塞入符合 Fongmi 规范的卡片列表里
                     vod_list.append({

@@ -4,7 +4,7 @@ from base.spider import Spider
 
 class Spider(Spider):
     def getName(self):
-        return '标签网址测试源'
+        return 'test'
 
     def init(self, extend=""):
         # ⚠️ 请把这里换成你那个网站的真实主域名

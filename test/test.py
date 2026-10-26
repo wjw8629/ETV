@@ -56,26 +56,22 @@ class Spider(Spider):
                 html_content = r.text
                 
                 # 3. 🔍 升级版通用正则：同时完美兼容 <h2> 和 <h3> 标签
-                reg_rule = r'href="/[a-zA-Z0-9-]+-(\d+)\.html"[\s\S]*?src="([^"]+)"[\s\S]*?<(h2|h3)>([^<]+)</\3>'
+                                # 💡 提示修改点：不要只传纯数字 vid，直接把完整的网页路径（例如 /barcelona-vs-real-madrid-4665.html）抓出来传给下一步
+                reg_rule = r'href="([^"]+-[0-9]+\.html)"[\s\S]*?src="([^"]+)"[\s\S]*?<h>([^<]+)</h>'
                 matches = re.findall(reg_rule, html_content)
                 
                 vod_list = []
-                for match_item in matches:
-                    vid = match_item[0]       # 挖出来的数字 ID (如4659)
-                    pic_url = match_item[1]   # 图片路径
-                    name = match_item[3]      # 匹配出来的真实标题（在第4个捕获组里）
-                    
-                    # 自动补全可能存在的相对图片路径
+                for ep_path, pic_url, name in matches:
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                         
-                    # 4. 将清洗好的数据，打包塞入符合 Fongmi 规范的卡片列表里
                     vod_list.append({
-                        'vod_id': vid,               
+                        'vod_id': ep_path,           # 🔥 核心修改：让 vod_id 携带完整的网页路径
                         'vod_name': name.strip(),     
                         'vod_pic': pic_url,          
-                        'vod_remarks': f'ID:{vid}'    
+                        'vod_remarks': '高清集锦'    
                     })
+
                 
                 # 5. 把拼好的封面墙返回
                 result['list'] = vod_list

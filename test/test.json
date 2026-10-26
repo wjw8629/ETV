@@ -1,0 +1,13 @@
+{
+  "sites": [
+    {
+      "key": "csp_infobv_test",
+      "name": "test",
+      "type": 3,
+      "api": "./test.py",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 0
+    }
+  ]
+}

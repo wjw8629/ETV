@@ -34,13 +34,12 @@ class Spider(Spider):
     def homeVideoContent(self):
         return {}
 
-        # 核心：请求新网站对应的标签网址，精准洗出全新排版的视频封面墙
+        # 2. 第二步：请求新网站分类，实时缩放宽幅海报，破除 App 竖屏框切队徽的硬伤
     def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
-        # 初始化 Fongmi 标准数据结构（允许翻页）
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
         
-        # 拼接带页码的分页网址（WordPress 通用分页路由为 /page/页码）
+        # 兼容 WordPress 的标准翻页路由
         if pg > 1:
             target_url = f"{self.host}{tid}page/{pg}/" if tid.endswith("/") else f"{self.host}{tid}/page/{pg}/"
         else:
@@ -54,8 +53,7 @@ class Spider(Spider):
             if r.status_code == 200:
                 html_content = r.text
                 
-                # 🔍 新站独家精密正则：完美匹配图片直链、跳转路径以及 headline 标题
-                # 结构：src="图片" ... itemprop="headline"> <a href="路径" ... >比赛全名</a>
+                # 精准正则：捞取海报、路径、比赛全名
                 reg_rule = r'src="([^"]+)"[\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
                 matches = re.findall(reg_rule, html_content)
                 
@@ -64,54 +62,60 @@ class Spider(Spider):
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    # 铁律拦截：如果标题里不包含 "vs"，直接过滤掉Home或垃圾广告
+                    # 🔥 拦截过滤：如果标题里不包含 "vs"，说明是 Home 菜单或垃圾推广，直接过滤丢弃
                     if "vs" not in lower_title:
                         continue
                         
+                    # 💡 【核心图片缩放突破点】
+                    # 如果原网站的图片是相对路径，先补全它
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
+                    
+                    # 强效缩放暗号：利用 WordPress 缩略图动态裁剪机制
+                    # 在图片直链后面强行截断或追加缩放尺寸参数（例如强制要求服务器生成 440x440 带有缩放等比例黑边的安全图）
+                    if "?resize=" in pic_url:
+                        pic_url = pic_url.split("?resize=")[0] + "?resize=440%2C440&ssl=1"
+                    else:
+                        pic_url = pic_url + "?resize=440%2C440&ssl=1"
                         
                     ep_path = full_url.replace(self.host, "")
                     
-                    # 1. 🔍 拆分出主队
+                    # 拆分主客队
                     idx = lower_title.find("vs")
                     home_team = full_title[:idx].strip().rstrip('-').strip()
                     away_team = full_title[idx+2:].strip()
                     
-                    # 2. 🔍 智能切出原网站自带的原生时间后缀（例如 25 Oct 2026）
-                    # 新网站的标题非常有规律，最后 11 个字符通常就是类似 "25 Oct 2026"
+                    # 截出原网站原生日期（例如 25 Oct 2026）
                     display_date = "近期赛事"
-                    # 匹配形如 "25 Oct 2026" 或 "5 Oct 2026" 的原生时间后缀
                     date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', away_team)
                     if date_match:
-                        display_date = date_match.group(1) # 直接白嫖原网站的原生日期，如 25 Oct 2026
+                        display_date = date_match.group(1)
+                        # 将日期从客队名字里抹掉，防止对阵太长被截断
+                        away_team = away_team.replace(date_match.group(1), "").strip()
                     
-                    # 3. 🔍 清洗客队名字，把客队末尾所有的 full match 等废话和刚刚切出来的日期全部斩断
-                    if " full" in away_team.lower():
-                        f_idx = away_team.lower().find(" full")
-                        away_team = away_team[:f_idx].strip()
-                    else:
-                        # 如果没有 full 关键字，就把刚才匹配到的日期从客队名字里抹掉，防止客队名字太长
-                        if date_match:
-                            away_team = away_team.replace(date_match.group(1), "").strip().rstrip('-').strip()
-                        
-                    # 4. 🎨 终极排版打包
-                    match_vs_text = f"{home_team} VS {away_team}" # 拼接出标准的对阵大牌 [皇家马德里 VS 巴塞罗那]
+                    # 斩断客队末尾长长的 full match 废话后缀
+                    for word in ["full match replay", "full match", "replay", "highlights"]:
+                        if word in away_team.lower():
+                            w_idx = away_team.lower().find(word)
+                            away_team = away_team[:w_idx].strip()
+                    away_team = away_team.rstrip('-').strip()
+                    
+                    # 组装对阵大牌
+                    match_vs_text = f"{home_team} VS {away_team}"
                     
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': display_date,     # ⬇️ 大字标题栏：直接显示原生的比赛日期（如 25 Oct 2026）
-                        'vod_pic': pic_url,          
-                        'vod_remarks': match_vs_text  # ⬆️ 海报悬浮标签：显示霸气的完整对阵 [主队 VS 客队]
+                        'vod_name': display_date,     # 下方大字标题栏：显示干净的原生日期（25 Oct 2026）
+                        'vod_pic': pic_url,           # 核心：已经执行等比例缩放、绝对不切队徽的安全图
+                        'vod_remarks': match_vs_text  # 海报悬浮角标栏：显示完整的对阵 [主队 VS 客队]
                     })
-
                 
                 result['list'] = vod_list
                 result['total'] = len(vod_list)
         except:
             pass
-            
         return result
+
 
 
     def detailContent(self, ids):

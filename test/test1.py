@@ -152,19 +152,29 @@ class Spider(Spider):
         return {'list': []}
 
     def playerContent(self, flag, id, vipFlags):
+        """
+        4. 播放页终极优化：带上专属伪装头，配合 JS 自动点击完成嗅探
+        """
         result = {'parse': 1, 'playUrl': '', 'url': id}
+        
+        # 🔥 根据你抓包获取的 F12 头部，精准复刻防盗链伪装
         result['header'] = {
-            'User-Agent': self.header['User-Agent'],
-            'Referer': id
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0',
+            'Referer': 'https://playmogo.com/', # 强制锁定为主域名防盗链源头
+            'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
+            'Accept-Language': 'en-US',
+            'Connection': 'keep-alive'
         }
-        # 自动化 JavaScript 点击脚本注入：注入隐藏的 Webview 在网页加载后高频模拟点击播放，逼出带 token 的真实流直链
+        
+        # 自动化 JavaScript 点击脚本注入
         result['js'] = """
         (function() {
             var timer = setInterval(function() {
                 var btn = document.querySelector('.vjs-big-play-button') || 
                           document.querySelector('[class*="play"]') || 
                           document.querySelector('video') || 
-                          document.querySelector('#player');
+                          document.querySelector('#player') ||
+                          document.querySelector('.play-button');
                 if (btn) {
                     clearInterval(timer);
                     if (btn.tagName === 'VIDEO') {

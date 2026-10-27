@@ -17,6 +17,10 @@
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 0
+      "style": {
+    "type": "rect",       // 如果你的图片全都是横图，可以尝试改为横图模式
+    "ratio": 1.33         // 调整宽高比
+  }
     }
   ]
 }

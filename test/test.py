@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import re
 import requests
 from base.spider import Spider
 

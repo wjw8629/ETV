@@ -66,21 +66,23 @@ class Spider(Spider):
                     if "vs" not in lower_title:
                         continue
                         
-                    # 💡 【核心图片缩放突破点】
-                    # 如果原网站的图片是相对路径，先补全它
+                    # 💡 如果原网站的图片是相对路径，先补全它
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                     
-                    # 🚀 宽度对齐优化：剥离原有的高宽裁剪参数，强制指定宽度为 500 像素，高度自适应
+                    # 🚀【清洗冲突参数】
                     if "?resize=" in pic_url:
-                        pic_url = pic_url.split("?resize=")[0]
+                        raw_pic = pic_url.split("?resize=")[0]
                     elif "?w=" in pic_url:
-                        pic_url = pic_url.split("?w=")[0]
+                        raw_pic = pic_url.split("?w=")[0]
                     elif "?" in pic_url:
-                        pic_url = pic_url.split("?")[0]
+                        raw_pic = pic_url.split("?")[0]
+                    else:
+                        raw_pic = pic_url
                         
-                    # 注入 w=500 参数：强制让图片以 500px 宽度对齐缩放，不限制高度，从而让宽度完全完整显示
-                    pic_url = pic_url + "?w=500&ssl=1"
+                    # 🚀【核心改良点：强行拼入竖屏比例盒模型】
+                    # 利用 WordPress CDN 的强制填充机制：缩放到 400x560 (完美 5:7 电影海报比例)，多余地方由云端渲染补全，不破坏画面比例
+                    pic_url = f"{raw_pic}?fit=400%2C560&ssl=1"
                         
                     ep_path = full_url.replace(self.host, "")
                     
@@ -109,8 +111,8 @@ class Spider(Spider):
                     
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': display_date,     # 下方大字标题栏：显示干净的原生日期（25 Oct 2026）
-                        'vod_pic': pic_url,           # 核心：已经执行宽度自适应、绝对不切队徽的安全图
+                        'vod_name': display_date,     # 下方大字标题栏：显示干净的原生日期
+                        'vod_pic': pic_url,           # 核心：套了电影海报比例盒模型的安全图
                         'vod_remarks': match_vs_text  # 海报悬浮角标栏：显示完整的对阵 [主队 VS 客队]
                     })
                 
@@ -119,6 +121,7 @@ class Spider(Spider):
         except:
             pass
         return result
+
 
     def detailContent(self, ids):
         return {'list': []}

@@ -82,9 +82,9 @@ class Spider(Spider):
                 # 3. 按要求：图片标签(vod_name)改成主队名，标题/备注改成客队名
                 result['list'].append({
                     'vod_id': vod_id,
-                    'vod_name': home_team,                    # 图片标签（海报标题）为主队名
+                    'vod_name': f"vs {away_team}",                    # 图片标签（海报标题）为主队名
                     'vod_pic': pic,
-                    'vod_remarks': f"客队: {away_team}"        # 备注显示客队名
+                    'vod_remarks': home_team       # 备注显示客队名
                 })
         except Exception as e:
             pass

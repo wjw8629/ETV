@@ -44,15 +44,12 @@ class Spider(Spider):
 
     def categoryContent(self, tid, pg, filter, extend):
         """
-        1. 分类列表页核心修复点
-        当在 Fongmi 点击某个分类（如英超、西甲）或翻页时触发。
+        1. 分类列表页：当在 Fongmi 点击某个分类或翻页时触发。
         """
         result = {'list': [], 'page': int(pg), 'pagecount': 99, 'limit': 20, 'total': 999}
         try:
-            # 兼容首页分类和多页结构，全网一般翻页格式为 /page/2/ 或 /leagues/premier-league/page/2/
             url = self.host + tid
             if int(pg) > 1:
-                # 拼接翻页链接
                 if url.endswith('/'):
                     url = f"{url}page/{pg}/"
                 else:
@@ -70,7 +67,7 @@ class Spider(Spider):
 
     def parseVideoList(self, soup):
         """
-        公共数据解析抽取方法（包含过滤非VS链接、主客队名称重置逻辑）
+        公共数据解析方法（严格执行：无VS不抓、含Highlights不抓、主客队名称重置逻辑）
         """
         video_list = []
         matches = soup.find_all('a', class_='entry-image-link')
@@ -87,8 +84,13 @@ class Spider(Spider):
             if not raw_title or not href:
                 continue
 
-            # 1. 统一转换大小写并判断是否包含 vs，没有则不抓取
             lower_title = raw_title.lower()
+
+            # 🔥 【新要求核心过滤】：只要网站海报标题里包含 highlights，说明它是集锦页，直接不要
+            if 'highlight' in lower_title:
+                continue
+
+            # 1. 判断是否包含 vs，没有则不抓取
             if 'vs' not in lower_title:
                 continue
 
@@ -101,17 +103,17 @@ class Spider(Spider):
             
             parts = raw_title.split(vs_marker)
             home_team = parts[0].strip()   # 主队
-            away_part = parts[1].strip()   # 客队及后续后缀
+            away_part = parts[1].strip()   # 客队及后续部分
             
-            # 进一步清洗客队：剔除 Full Match, Replay 等常见杂质关键词
+            # 进一步清洗客队名：剔除常见的杂质后缀
             away_team = away_part
-            for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', 'Highlight', 'highlight', '&amp;']:
+            for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', '&amp;']:
                 if keyword in away_team:
                     away_team = away_team.split(keyword)[0].strip()
 
             vod_id = href.replace(self.host, '')
             
-            # 3. 按修改后的逻辑：图片标签（vod_name）显式客队，备注（vod_remarks）显式主队
+            # 3. 按要求：图片标签（vod_name）变客队名，备注显示主队名
             video_list.append({
                 'vod_id': vod_id,
                 'vod_name': f"vs {away_team}",                    # 标题：vs 客队名
@@ -122,24 +124,72 @@ class Spider(Spider):
 
     def detailContent(self, ids):
         """
-        2. 详情页
+        2. 详情页：解析具体的播放按钮和多线路
         """
         result = {'list': []}
         vod_id = ids[0]
-        vod = {
-            'vod_id': vod_id,
-            'vod_name': '比赛名称',
-            'vod_pic': '',
-            'type_name': '足球赛事',
-            'vod_year': '2026',
-            'vod_area': '欧洲',
-            'vod_actor': '',
-            'vod_director': '',
-            'vod_content': '赛事内容简介',
-            'vod_play_from': '全场回放$$集锦',  
-            'vod_play_url': '正半场$play_id_1#下半场$play_id_2$$高清集锦$play_id_3'  
-        }
-        result['list'].append(vod)
+        url = self.host + vod_id
+        
+        try:
+            response = requests.get(url, headers=self.header, timeout=self.timeout)
+            if response.status_code != 200:
+                return result
+                
+            soup = BeautifulSoup(response.text, 'html.parser')
+            title_tag = soup.find('h1')
+            vod_name = title_tag.text.strip() if title_tag else "赛事回放"
+            
+            # 抓取带 myButton 类的播放跳转标签
+            buttons = soup.find_all('a', class_='myButton')
+            play_tracks = {}
+            
+            for btn in buttons:
+                btn_text = btn.text.strip()
+                btn_href = btn.get('href', '')
+                
+                if not btn_href:
+                    continue
+                    
+                # 同时也过滤掉页面内可能混入的、文本带有 highlight 词条的按钮
+                if 'highlight' in btn_text.lower():
+                    continue
+                
+                # 按照域名对播放源分类
+                track_name = "默认线路"
+                for domain in ['playmogo', 'vidaraa', 'vidara', 'vixeo']:
+                    if domain in btn_href:
+                        track_name = f"源-{domain}"
+                        break
+                
+                if track_name not in play_tracks:
+                    play_tracks[track_name] = []
+                
+                play_tracks[track_name].append(f"{btn_text}${btn_href}")
+            
+            if play_tracks:
+                vod_play_from = "$$".join(play_tracks.keys())
+                track_urls = []
+                for track in play_tracks.keys():
+                    track_urls.append("#".join(play_tracks[track]))
+                vod_play_url = "$$".join(track_urls)
+            else:
+                vod_play_from = "暂无回放"
+                vod_play_url = "无可用正片$#"
+
+            vod = {
+                'vod_id': vod_id,
+                'vod_name': vod_name,
+                'vod_pic': '', 
+                'type_name': '全场赛事',
+                'vod_play_from': vod_play_from,
+                'vod_play_url': vod_play_url,
+                'vod_content': vod_name
+            }
+            result['list'].append(vod)
+            
+        except Exception as e:
+            pass
+            
         return result
 
     def searchContent(self, key, quick):
@@ -151,8 +201,16 @@ class Spider(Spider):
 
     def playerContent(self, flag, id, vipFlags):
         """
-        4. 播放页
+        4. 播放页：拉起内嵌网盘视频流
         """
         result = {'parse': 0, 'playUrl': '', 'url': ''}
-        result['url'] = id  
+        try:
+            result['parse'] = 1  # 开启后台强力 Webview 嗅探，自动抓取真实 mp4 轨道
+            result['url'] = id
+            result['header'] = {
+                'User-Agent': self.header['User-Agent'],
+                'Referer': id
+            }
+        except Exception as e:
+            pass
         return result

@@ -60,37 +60,39 @@ class Spider(Spider):
                 
                 vod_list = []
                 for pic_url, full_url, full_name in matches:
-                    # 将完整的 https 网址剥离为相对路径，方便后续详情页统一接收
-                    ep_path = full_url.replace(self.host, "")
-                    
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    # 默认保底值
-                    home_team = full_title
-                    remarks_text = "高清赛事"
+                    # 💡 【核心拦截改动】：如果标题里不包含 "vs"，直接证明是导航菜单（如Home）或杂质广告，当场丢弃过滤
+                    if "vs" not in lower_title:
+                        continue  # 跳过当前循环，不抓取、不打包
+                        
+                    # 走到这里，说明百分之百是一场带有 "vs" 的正规球赛
+                    if pic_url.startswith("/"):
+                        pic_url = self.host + pic_url
+                        
+                    ep_path = full_url.replace(self.host, "")
                     
-                    # 💡 完美平移你上一站最满意的主客队对调风格！
-                    if "vs" in lower_title:
-                        idx = lower_title.find("vs")
-                        home_team = full_title[:idx].strip().rstrip('-').strip()
-                        away_team = full_title[idx+2:].strip()
-                        # 去掉可能残留在客队末尾的废话后缀
-                        if " full match" in away_team.lower():
-                            f_idx = away_team.lower().find(" full match")
-                            away_team = away_team[:f_idx].strip()
-                            
-                        remarks_text = home_team
-                        display_name = f"vs {away_team}"
-                    else:
-                        display_name = full_title
+                    # 完美执行你的主客队名字对调切分
+                    idx = lower_title.find("vs")
+                    home_team = full_title[:idx].strip().rstrip('-').strip()
+                    away_team = full_title[idx+2:].strip()
+                    
+                    # 精简去掉客队末尾长长的废话后缀（如 full match replay）
+                    if " full match" in away_team.lower():
+                        f_idx = away_team.lower().find(" full match")
+                        away_team = away_team[:f_idx].strip()
+                    if " replay" in away_team.lower():
+                        r_idx = away_team.lower().find(" replay")
+                        away_team = away_team[:r_idx].strip()
                         
                     vod_list.append({
-                        'vod_id': ep_path,            # 把长英文路径传给下一步详情页
-                        'vod_name': display_name,     # 标题栏大字：显示 “vs 客队名”
-                        'vod_pic': pic_url,           # 封面海报图直链
-                        'vod_remarks': remarks_text   # 右下角标签：显示 “主场球队名”
+                        'vod_id': ep_path,            
+                        'vod_name': f"vs {away_team}", # 标题大字：显示 “vs 客队名”
+                        'vod_pic': pic_url,          
+                        'vod_remarks': home_team       # 海报标签：显示 “主场球队名”
                     })
+
                 
                 result['list'] = vod_list
                 result['total'] = len(vod_list)

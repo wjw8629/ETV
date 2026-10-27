@@ -23,14 +23,11 @@ class Spider(Spider):
         result['class'].append({'type_name': '英超', 'type_id': '/leagues/premier-league'})
         result['class'].append({'type_name': '西甲', 'type_id': '/leagues/la-liga'})
         result['class'].append({'type_name': '德甲', 'type_id': '/leagues/bundesliga'})
-        result['class'].append({'type_name': '意甲', 'type_id': '/cate/serie/leagues/serie-a'})
+        result['class'].append({'type_name': '意甲', 'type_id': '/leagues/serie-a'})
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         
-        # 🔥 关键修复点：Fongmi 在初始化首页时，会优先展示 homeContent 返回的 list
-        # 如果这里是空的，海报墙就不会显示。所以在这里直接调用下面写好的海报墙抓取方法
         home_videos = self.homeVideoContent()
         result['list'] = home_videos.get('list', [])
-        
         return result
 
     def homeVideoContent(self):
@@ -40,70 +37,92 @@ class Spider(Spider):
             if response.status_code != 200:
                 return result
             soup = BeautifulSoup(response.text, 'html.parser')
-            matches = soup.find_all('a', class_='entry-image-link')
-            
-            for match in matches:
-                img_tag = match.find('img')
-                if not img_tag:
-                    continue
-                
-                raw_title = img_tag.get('alt', '').strip()
-                href = match.get('href', '')
-                pic = img_tag.get('src', '')
-                
-                if not raw_title or not href:
-                    continue
-
-                # 1. 统一转换大小写并判断是否包含 vs，没有则不抓取
-                lower_title = raw_title.lower()
-                if 'vs' not in lower_title:
-                    continue
-
-                # 2. 找到实际的 vs 分隔符并切分出主队和客队
-                vs_marker = "vs"
-                if "VS" in raw_title:
-                    vs_marker = "VS"
-                elif "Vs" in raw_title:
-                    vs_marker = "Vs"
-                
-                # 切分字符串，例如 "Hull City vs Brentford Full Match Replay..."
-                parts = raw_title.split(vs_marker)
-                home_team = parts[0].strip()   # 主队：Hull City
-                away_part = parts[1].strip()   # 客队及后续后缀：Brentford Full Match Replay...
-                
-                # 进一步清洗客队：剔除 Full Match, Replay 等常见杂质关键词
-                away_team = away_part
-                for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', 'Highlight', 'highlight']:
-                    if keyword in away_team:
-                        away_team = away_team.split(keyword)[0].strip()
-
-                vod_id = href.replace(self.host, '')
-                
-                # 3. 按要求：图片标签(vod_name)改成主队名，标题/备注改成客队名
-                result['list'].append({
-                    'vod_id': vod_id,
-                    'vod_name': f"vs {away_team}",                    # 图片标签（海报标题）为主队名
-                    'vod_pic': pic,
-                    'vod_remarks': home_team       # 备注显示客队名
-                })
+            result['list'] = self.parseVideoList(soup)
         except Exception as e:
             pass
         return result
 
-
     def categoryContent(self, tid, pg, filter, extend):
         """
-        1. 分类列表页
+        1. 分类列表页核心修复点
         当在 Fongmi 点击某个分类（如英超、西甲）或翻页时触发。
         """
         result = {'list': [], 'page': int(pg), 'pagecount': 99, 'limit': 20, 'total': 999}
-        # TODO: 拼接带页码的分类 URL 并抓取该分类下的视频列表
+        try:
+            # 兼容首页分类和多页结构，全网一般翻页格式为 /page/2/ 或 /leagues/premier-league/page/2/
+            url = self.host + tid
+            if int(pg) > 1:
+                # 拼接翻页链接
+                if url.endswith('/'):
+                    url = f"{url}page/{pg}/"
+                else:
+                    url = f"{url}/page/{pg}/"
+
+            response = requests.get(url, headers=self.header, timeout=self.timeout)
+            if response.status_code != 200:
+                return result
+                
+            soup = BeautifulSoup(response.text, 'html.parser')
+            result['list'] = self.parseVideoList(soup)
+        except Exception as e:
+            pass
         return result
+
+    def parseVideoList(self, soup):
+        """
+        公共数据解析抽取方法（包含过滤非VS链接、主客队名称重置逻辑）
+        """
+        video_list = []
+        matches = soup.find_all('a', class_='entry-image-link')
+        
+        for match in matches:
+            img_tag = match.find('img')
+            if not img_tag:
+                continue
+            
+            raw_title = img_tag.get('alt', '').strip()
+            href = match.get('href', '')
+            pic = img_tag.get('src', '')
+            
+            if not raw_title or not href:
+                continue
+
+            # 1. 统一转换大小写并判断是否包含 vs，没有则不抓取
+            lower_title = raw_title.lower()
+            if 'vs' not in lower_title:
+                continue
+
+            # 2. 找到实际的 vs 分隔符并切分出主队和客队
+            vs_marker = "vs"
+            if "VS" in raw_title:
+                vs_marker = "VS"
+            elif "Vs" in raw_title:
+                vs_marker = "Vs"
+            
+            parts = raw_title.split(vs_marker)
+            home_team = parts[0].strip()   # 主队
+            away_part = parts[1].strip()   # 客队及后续后缀
+            
+            # 进一步清洗客队：剔除 Full Match, Replay 等常见杂质关键词
+            away_team = away_part
+            for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', 'Highlight', 'highlight', '&amp;']:
+                if keyword in away_team:
+                    away_team = away_team.split(keyword)[0].strip()
+
+            vod_id = href.replace(self.host, '')
+            
+            # 3. 按修改后的逻辑：图片标签（vod_name）显式客队，备注（vod_remarks）显式主队
+            video_list.append({
+                'vod_id': vod_id,
+                'vod_name': f"vs {away_team}",                    # 标题：vs 客队名
+                'vod_pic': pic,
+                'vod_remarks': home_team                        # 备注：主队名
+            })
+        return video_list
 
     def detailContent(self, ids):
         """
         2. 详情页
-        当点击海报墙上的某个视频卡片时触发，用来获取播放列表和视频简介。
         """
         result = {'list': []}
         vod_id = ids[0]
@@ -126,7 +145,6 @@ class Spider(Spider):
     def searchContent(self, key, quick):
         """
         3. 搜索页
-        在全局输入关键词搜索赛事时触发。
         """
         result = {'list': []}
         return result
@@ -134,7 +152,6 @@ class Spider(Spider):
     def playerContent(self, flag, id, vipFlags):
         """
         4. 播放页
-        点击具体的集数（如“上半场”）准备播放时触发。
         """
         result = {'parse': 0, 'playUrl': '', 'url': ''}
         result['url'] = id  

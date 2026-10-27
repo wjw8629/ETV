@@ -82,26 +82,36 @@ class Spider(Spider):
                         
                     ep_path = full_url.replace(self.host, "")
                     
-                    # 拆分主客队
-                    idx = lower_title.find("vs")
-                    home_team = full_title[:idx].strip().rstrip('-').strip()
-                    away_team = full_title[idx+2:].strip()
-                    
-                    # 🚀【完全恢复原生的日期截取方式】
-                    display_date = "近期赛事"
-                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', away_team)
+                    # 🚀【步骤 1：第一步就在全名里抢先截取原生日期】
+                    # 匹配原网站原汁原味的：1-2位数字 + 空格 + 3位字母月份 + 空格 + 4位年份（例如 26 Oct 2026）
+                    display_date = "近期"
+                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', full_title)
                     if date_match:
-                        display_date = date_match.group(1)
-                        # 将日期从客队名字里抹掉，防止干扰后续的球队名称截取
-                        away_team = away_team.replace(date_match.group(1), "").strip()
+                        display_date = date_match.group(1).strip()  # 拿到完整的原生日期：如 "26 Oct 2026"
+                        # 先在清洗大标题时将这一段日期扣掉，避免干扰后续球队名字拆分
+                        clean_title = full_title.replace(date_match.group(0), "").strip()
+                    else:
+                        clean_title = full_title
                     
-                    # 斩断客队末尾长长的 full match 废话后缀
+                    # 🚀【步骤 2：现在可以放心地剥离无用后缀废话了】
                     for word in ["full match replay", "full match", "replay", "highlights"]:
-                        if word in away_team.lower():
-                            w_idx = away_team.lower().find(word)
-                            away_team = away_team[:w_idx].strip()
-                            
-                    # 清洗两端残留的连字符或垃圾符号
+                        if word in clean_title.lower():
+                            w_idx = clean_title.lower().find(word)
+                            clean_title = clean_title[:w_idx].strip()
+                    
+                    # 🚀【步骤 3：切分主客队】
+                    vs_match = re.search(r'\s+[vV][sS]\s+', clean_title)
+                    if vs_match:
+                        vs_str = vs_match.group(0)
+                        parts = clean_title.split(vs_str)
+                        home_team = parts[0].strip()
+                        away_team = parts[1].strip()
+                    else:
+                        idx = clean_title.lower().find("vs")
+                        home_team = clean_title[:idx].strip()
+                        away_team = clean_title[idx+2:].strip()
+                    
+                    # 清洗可能遗留的包裹中划线
                     home_team = home_team.rstrip('-').rstrip('–').strip()
                     away_team = away_team.lstrip('-').lstrip('–').rstrip('-').rstrip('–').strip()
                     
@@ -109,8 +119,8 @@ class Spider(Spider):
                     home_final = format_team_name(home_team)
                     away_final = format_team_name(away_team)
                     
-                    # 5. 按照您的要求拼装：标签是日期，标题是球队
-                    tag_remark = display_date                    # 🏷️ 标签角落栏：显示原生日期（如 25 Oct 2026）
+                    # 5. 组装：标签是原装日期，标题是 7 格球队对决
+                    tag_remark = display_date                    # 🏷️ 标签角落栏：显示原生日期（如 26 Oct 2026）
                     title_name = f"{home_final} - {away_final}"   # 📺 大字标题栏：显示 7格对齐的主客队
                     
                     vod_list.append({

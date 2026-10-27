@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-import requests
-from bs4 import BeautifulSoup
+import sys
 from base.spider import Spider
 
 class Spider(Spider):
@@ -8,18 +7,16 @@ class Spider(Spider):
         return 'FullShowSpider'
 
     def init(self, extend=""):
-        # ⚠️ 主域名
+        """初始化配置，在爬虫加载时首先运行"""
         self.host = 'https://fullmatchshows.com'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': self.host,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Connection': 'keep-alive'
+            'Referer': self.host
         }
         self.timeout = 10
 
     def homeContent(self, filter):
+        """首页分类：定义App顶部显示的各个版块"""
         result = {'class': [], 'list': []}
         result['class'].append({'type_name': '最新', 'type_id': '/'})
         result['class'].append({'type_name': '欧冠', 'type_id': '/leagues/champions-league'})
@@ -30,133 +27,109 @@ class Spider(Spider):
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
-    def categoryPage(self, tid, pg, filter):
-        # 拼接分类与页码 URL
-        url = self.host + tid
-        if pg > 1:
-            url = f"{url}/page/{pg}"
-            
+    def homeVideoContent(self):
+        """首页推荐视频（可选，默认返回空列表）"""
         result = {'list': []}
+        return result
+
+        def categoryContent(self, tid, pg, filter, extend):
+        result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 0, 'total': 9999}
+        
+        # 拼接分类和分页 URL
+        url = self.host if tid == '/' else f"{self.host}{tid}"
+        if int(pg) > 1:
+            url = f"{url}/page/{pg}" if url.endswith('/') else f"{url}/page/{pg}/"
+            
         try:
-            response = requests.get(url, headers=self.header, timeout=self.timeout)
-            if response.status_code != 200:
-                print(f"请求失败，状态码: {response.status_code}")
-                return result
-                
-            soup = BeautifulSoup(response.text, 'html.parser')
+            rsp = requests.get(url, headers=self.header, timeout=self.timeout)
+            html_text = rsp.text
             
-            # 精准定位包含海报的区域（同时兼容主页和其它页标签结构）
-            items = soup.select('.post-thumb a, .entry-media a, .ticker-slider-items a')
+            # 使用 BeautifulSoup 解析 HTML 
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_text, 'lxml')
             
-            for a_tag in items:
-                img_tag = a_tag.find('img')
-                if not img_tag:
+            videos = []
+            # 🔍 精准锁定你提供的 HTML 特征类名：post-thumb
+            thumb_divs = soup.find_all('div', class_='post-thumb')
+            
+            for div in thumb_divs:
+                a_tag = div.find('a', class_='entry-image-link')
+                img_tag = div.find('img')
+                if not a_tag or not img_tag:
                     continue
                     
-                vod_id = a_tag.get('href', '')
-                # 优先读取 src，若有懒加载则读取 data-src 兜底
-                vod_pic = img_tag.get('src', '') or img_tag.get('data-src', '')
-                raw_title = img_tag.get('alt', '') or img_tag.get('title', '')
+                # 提取基本属性
+                href = a_tag.get('href', '')
+                vod_id = href.replace(self.host, '') # 提取相对 ID
+                img_url = img_tag.get('src', '')
                 
-                if not vod_id or not vod_pic or not raw_title:
+                # 原始完整标题，例如: "Hull City vs Brentford Full Match Replay 25 Oct 2026"
+                raw_title = img_tag.get('alt', '').strip()
+                if not raw_title:
                     continue
+                
+                # 🛠️ 拆分主队与客队逻辑
+                # 兼容大小写的 "vs" 或 "VS" 或 "Vs"
+                lower_title = raw_title.lower()
+                if 'vs' in lower_title:
+                    # 找到 vs 所在的位置进行切割
+                    vs_idx = lower_title.find('vs')
+                    home_team = raw_title[:vs_idx].strip() # "Hull City"
                     
-                # 将文本中的 " vs " 作为切分标志
-                if ' vs ' in raw_title:
-                    parts = raw_title.split(' vs ')
-                    home_team = parts[0].strip()  # 提取主队名称
-                    
-                    # 此时 parts[1] 形如 "Brentford Full Match Replay 25 Oct 2026"
-                    # 我们需要将其后面的多余非队伍文本清洗掉
-                    away_part = parts[1]
-                    for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', '202']:
-                        if keyword in away_part:
-                            away_part = away_part.split(keyword)[0]
-                    
-                    away_team = away_part.strip()  # 提取干净的客队名称
-                    
-                    # 严格执行要求：海报标签显示主队，标题显示客队名称
-                    vod_remarks = home_team
-                    vod_name = away_team
+                    # 剩余部分，例如: "Brentford Full Match Replay 25 Oct 2026"
+                    remaining = raw_title[vs_idx + 2:].strip()
+                    # 进一步将多余的后缀去掉，只保留精准的客队名称
+                    # 常见后缀：Full Match, Replay, Highlights
+                    away_cleanup = remaining
+                    for kw in ['full match', 'replay', 'highlights', 'watch']:
+                        if kw in away_cleanup.lower():
+                            kw_idx = away_cleanup.lower().find(kw)
+                            away_cleanup = away_cleanup[:kw_idx].strip()
+                            
+                    away_team = away_cleanup if away_cleanup else remaining
                 else:
-                    # 兜底清洗逻辑
-                    vod_name = raw_title.split('Full')[0].split('full')[0].strip()
-                    vod_remarks = "Football"
+                    # 万一标题里没找到 vs，则保底不拆分
+                    home_team = "足球回放"
+                    away_team = raw_title
                 
-                vod_item = {
-                    'vod_id': vod_id, # 视频真实URL链接
-                    'vod_name': vod_name, # 标题（显示客队）
-                    'vod_pic': vod_pic, # 海报图片
-                    'vod_remarks': vod_remarks # 海报标签（显示主队）
-                }
+                videos.append({
+                    'vod_id': vod_id,
+                    'vod_name': away_team,   # 🏷️ 客队名称做主标题
+                    'vod_pic': img_url,      # 🖼️ 海报图片
+                    'vod_remarks': home_team # 🏷️ 主队名称做图片角落的标签
+                })
                 
-                # 过滤可能存在的重复节点
-                if vod_item not in result['list']:
-                    result['list'].append(vod_item)
-                    
+            result['list'] = videos
+            result['limit'] = len(videos)
+            
         except Exception as e:
-            print(f"解析列表出错: {e}")
+            print(f"Error in categoryContent: {e}")
             
         return result
+
 
     def detailContent(self, ids):
-        """
-        详情页核心留白：点击海报进入后的解析逻辑
-        """
-        # ids 是一个列表，通常只取第一个元素，它对应 categoryPage 里的 vod_id (即详情页URL)
-        url = ids[0]
+        """视频详情页：点击某部影片进入详情页时触发获取播放线路"""
+        # ids 通常传入的是一个数组列表，比如 ['/video-id']
         result = {'list': []}
-        
-        try:
-            response = requests.get(url, headers=self.header, timeout=self.timeout)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                
-                # ------ 💡 请在此处编写你的详情页解析逻辑（留白位置） ------
-                # 示例结构：
-                vod_detail = {
-                    'vod_id': url,
-                    'vod_name': '比赛名称',
-                    'vod_pic': '',
-                    'type_name': '足球比赛',
-                    'vod_year': '2026',
-                    'vod_area': 'Europe',
-                    'vod_actor': '',
-                    'vod_director': '',
-                    'vod_content': '比赛简介描述',
-                    # 播放源格式：'播放剧集名称1$播放器播放地址1#播放剧集名称2$播放器播放地址2'
-                    'vod_play_from': 'FullMatch',
-                    'vod_play_url': '上半场$https://xxx.com' 
-                }
-                # --------------------------------------------------------
-                
-                result['list'].append(vod_detail)
-        except Exception as e:
-            print(f"解析详情页出错: {e}")
-            
+        # TODO: 稍后在这里实现抓取正文内嵌播放线路的代码
         return result
 
-    def searchContent(self, key, quick, filter):
-        """
-        搜索功能核心留白：如果需要支持App内搜索比赛
-        """
-        # 拼接目标站点的标准搜索地址
-        url = f"{self.host}/?s={key}"
+    def searchContent(self, key, quick, pg="1"):
+        """全局搜索：在App内输入关键词搜索时触发"""
         result = {'list': []}
-        
-        # ------ 💡 搜索留白：如果需要搜索，这里可以复制上面 categoryPage 的解析逻辑 ------
-        
-        # -------------------------------------------------------------------------
+        # TODO: 稍后在这里实现搜索功能的代码
         return result
 
-    def playerContent(self, flag, id, jwconfig):
-        """
-        视频播放解析留白：最终投屏或播放时，如果需要嗅探/提取直链，在此处处理
-        """
+    def playerContent(self, flag, id, vipFlags):
+        """播放内核解析：点击播放具体的线路URL时触发"""
         result = {}
-        # 如果详情页里直接拿到了播放器的 iframe 页面地址，这里可以选择直接返回：
-        result["parse"] = 1  # 1代表让客户端尝试解析或内置WebView打开，0代表直链播放
+        result["parse"] = 0  # 0代表直接原样播放，1代表使用App配置的内理解析
         result["playUrl"] = ""
-        result["url"] = id  # 这里的 id 通常是在 detailContent 里填入的播放地址
+        result["url"] = id   # 默认直接原路返回传入的视频链接
         result["header"] = self.header
         return result
+
+    def localProxy(self, param):
+        """本地代理服务器（可选，用于中转、M3U8解密等复杂操作）"""
+        return [200, "video/MP2T", ""]

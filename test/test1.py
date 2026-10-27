@@ -28,13 +28,7 @@ class Spider(Spider):
         return result
 
 
-    # ==========================================
-    # 以下全为空壳保底函数，确保新站第一步顺利编译通过
-    # ==========================================
-    def homeVideoContent(self):
-        return {}
-
-        # 2. 第二步：请求新网站分类，实时缩放宽幅海报，破除 App 竖屏框切队徽的硬伤
+        # 2. 第二步：请求新网站分类，纯文本文字排版重组，破除 App 竖屏框硬伤
     def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
@@ -66,54 +60,57 @@ class Spider(Spider):
                     if "vs" not in lower_title:
                         continue
                         
-                    # 💡 如果原网站的图片是相对路径，先补全它
+                    # 💡 图片恢复原样，不做任何比例和参数修改
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
-                    
-                    # 🚀【清洗冲突参数】
-                    if "?resize=" in pic_url:
-                        raw_pic = pic_url.split("?resize=")[0]
-                    elif "?w=" in pic_url:
-                        raw_pic = pic_url.split("?w=")[0]
-                    elif "?" in pic_url:
-                        raw_pic = pic_url.split("?")[0]
-                    else:
-                        raw_pic = pic_url
-                        
-                    # 🚀【核心改良点：强行拼入竖屏比例盒模型】
-                    # 利用 WordPress CDN 的强制填充机制：缩放到 400x560 (完美 5:7 电影海报比例)，多余地方由云端渲染补全，不破坏画面比例
-                    pic_url = f"{raw_pic}?fit=400%2C560&ssl=1"
                         
                     ep_path = full_url.replace(self.host, "")
                     
-                    # 拆分主客队
-                    idx = lower_title.find("vs")
-                    home_team = full_title[:idx].strip().rstrip('-').strip()
-                    away_team = full_title[idx+2:].strip()
-                    
-                    # 截出原网站原生日期（例如 25 Oct 2026）
-                    display_date = "近期赛事"
-                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', away_team)
-                    if date_match:
-                        display_date = date_match.group(1)
-                        # 将日期从客队名字里抹掉，防止对阵太长被截断
-                        away_team = away_team.replace(date_match.group(1), "").strip()
-                    
-                    # 斩断客队末尾长长的 full match 废话后缀
+                    # 1. 精准斩断客队末尾长长的 full match 废话后缀，防止干扰日期提取
+                    clean_title = full_title
                     for word in ["full match replay", "full match", "replay", "highlights"]:
-                        if word in away_team.lower():
-                            w_idx = away_team.lower().find(word)
-                            away_team = away_team[:w_idx].strip()
+                        if word in clean_title.lower():
+                            w_idx = clean_title.lower().find(word)
+                            clean_title = clean_title[:w_idx].strip()
+                    
+                    # 2. 提取原生日期并清洗为“月日”（例如将 "25 Oct 2026" 提炼为 "25 Oct"）
+                    display_date = ""
+                    # 匹配类似 25 Oct 2026 或 25 October 2026
+                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]+)\s+\d{4}', clean_title)
+                    if date_match:
+                        display_date = date_match.group(1).strip()  # 只要 “日 月”，干掉年份
+                        # 从干净标题里把整段日期（含年份）抹掉
+                        full_date_str = re.search(r'(\d{1,2}\s+[a-zA-Z]+\s+\d{4})', clean_title).group(1)
+                        clean_title = clean_title.replace(full_date_str, "").strip()
+                    
+                    # 3. 用不区分大小写的 "vs" 拆分主队与客队
+                    vs_match = re.search(r'\s+[vV][sS]\s+', clean_title)
+                    if vs_match:
+                        vs_str = vs_match.group(0)
+                        parts = clean_title.split(vs_str)
+                        home_team = parts[0].strip().rstrip('-').strip()
+                        away_team = parts[1].strip().lstrip('-').strip()
+                    else:
+                        # 兜底容错：如果正则拆失败了，用原有逻辑定位
+                        idx = clean_title.lower().find("vs")
+                        home_team = clean_title[:idx].strip().rstrip('-').strip()
+                        away_team = clean_title[idx+2:].strip().lstrip('-').strip()
+                    
+                    # 4. 再次清洗主客队末尾残留的连字符
+                    home_team = home_team.rstrip('-').strip()
                     away_team = away_team.rstrip('-').strip()
                     
-                    # 组装对阵大牌
-                    match_vs_text = f"{home_team} VS {away_team}"
+                    # 5. 按照您的新规组装排版
+                    # 标签：只显示主队
+                    tag_remark = home_team
+                    # 标题：客队 + 月日
+                    title_name = f"{away_team} {display_date}".strip()
                     
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': display_date,     # 下方大字标题栏：显示干净的原生日期
-                        'vod_pic': pic_url,           # 核心：套了电影海报比例盒模型的安全图
-                        'vod_remarks': match_vs_text  # 海报悬浮角标栏：显示完整的对阵 [主队 VS 客队]
+                        'vod_name': title_name,       # 下方大字标题栏：客队 25 Oct
+                        'vod_pic': pic_url,           # 恢复原始状态的图片链接
+                        'vod_remarks': tag_remark     # 海报悬浮角标栏：主队
                     })
                 
                 result['list'] = vod_list

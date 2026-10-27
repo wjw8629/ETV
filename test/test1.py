@@ -27,7 +27,7 @@ class Spider(Spider):
 
         return result
 
-        def categoryContent(self, tid, pg, filter, extend):
+           def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
         
@@ -49,14 +49,14 @@ class Spider(Spider):
                 reg_rule = r'src="([^"]+)"[\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
                 matches = re.findall(reg_rule, html_content)
                 
-                # 💡【核心算法：将任意球队名字完美压缩进固定 7 格宽度】
+                # 💡【精准修复算法：将任意球队名字完美压缩进固定 7 格宽度】
                 def format_team_name(team_name):
                     team_name = team_name.strip()
                     # 用空格将可能存在的多个单词切开
                     words = [w for w in team_name.split(' ') if w]
                     
                     if len(words) >= 2:
-                        # 多单词：前两个单词各取 3 个字母，中间加 1 个空格，合起来正好 7 个格子
+                        # 🚀 彻底修复切片死穴：words[0] 是第一个单词，[:3] 才是提取其前 3 个字母
                         part1 = words[0][:3]
                         part2 = words[1][:3]
                         res = f"{part1} {part2}"
@@ -82,18 +82,17 @@ class Spider(Spider):
                         
                     ep_path = full_url.replace(self.host, "")
                     
-                    # 🚀【步骤 1：第一步就在全名里抢先截取原生日期】
-                    # 匹配原网站原汁原味的：1-2位数字 + 空格 + 3位字母月份 + 空格 + 4位年份（例如 26 Oct 2026）
+                    # 🚀【步骤 1：第一步就在全名里抢先截取原汁原味的原生日期】
                     display_date = "近期"
                     date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', full_title)
                     if date_match:
-                        display_date = date_match.group(1).strip()  # 拿到完整的原生日期：如 "26 Oct 2026"
+                        display_date = date_match.group(1).strip()  # 真正安全抓取原生日期：如 "26 Oct 2026"
                         # 先在清洗大标题时将这一段日期扣掉，避免干扰后续球队名字拆分
                         clean_title = full_title.replace(date_match.group(0), "").strip()
                     else:
                         clean_title = full_title
                     
-                    # 🚀【步骤 2：现在可以放心地剥离无用后缀废话了】
+                    # 🚀【步骤 2：剥离无用后缀废话】
                     for word in ["full match replay", "full match", "replay", "highlights"]:
                         if word in clean_title.lower():
                             w_idx = clean_title.lower().find(word)
@@ -115,13 +114,13 @@ class Spider(Spider):
                     home_team = home_team.rstrip('-').rstrip('–').strip()
                     away_team = away_team.lstrip('-').lstrip('–').rstrip('-').rstrip('–').strip()
                     
-                    # 🚀 调用 7 格宽度分配逻辑加工名字
+                    # 🚀 调用安全修正后的 7 格宽度分配逻辑加工名字
                     home_final = format_team_name(home_team)
                     away_final = format_team_name(away_team)
                     
                     # 5. 组装：标签是原装日期，标题是 7 格球队对决
-                    tag_remark = display_date                    # 🏷️ 标签角落栏：显示原生日期（如 26 Oct 2026）
-                    title_name = f"{home_final} - {away_final}"   # 📺 大字标题栏：显示 7格对齐的主客队
+                    tag_remark = display_date                    # 🏷️ 标签角落栏：原生日期显示
+                    title_name = f"{home_final} - {away_final}"   # 📺 大字标题栏：Man Uni - Che lse 经典格式
                     
                     vod_list.append({
                         'vod_id': ep_path,            

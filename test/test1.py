@@ -27,29 +27,24 @@ class Spider(Spider):
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
-    def homeVideoContent(self):
-        """首页推荐视频（可选，默认返回空列表）"""
-        result = {'list': []}
-        return result
-
-        def categoryContent(self, tid, pg, filter, extend):
+    def categoryContent(self, tid, pg, filter, extend):
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 0, 'total': 9999}
         
-        # 拼接分类和分页 URL
         url = self.host if tid == '/' else f"{self.host}{tid}"
         if int(pg) > 1:
             url = f"{url}/page/{pg}" if url.endswith('/') else f"{url}/page/{pg}/"
             
         try:
-            rsp = requests.get(url, headers=self.header, timeout=self.timeout)
+            # 导入标准 requests，增加 verify=False 防止盒子因证书问题报错
+            import requests
+            rsp = requests.get(url, headers=self.header, timeout=self.timeout, verify=False)
             html_text = rsp.text
             
-            # 使用 BeautifulSoup 解析 HTML 
             from bs4 import BeautifulSoup
-            soup = BeautifulSoup(html_text, 'lxml')
+            # 💡 安全修正：将 'lxml' 换成 Python 自带、完全通用的 'html.parser'
+            soup = BeautifulSoup(html_text, 'html.parser')
             
             videos = []
-            # 🔍 精准锁定你提供的 HTML 特征类名：post-thumb
             thumb_divs = soup.find_all('div', class_='post-thumb')
             
             for div in thumb_divs:
@@ -58,52 +53,55 @@ class Spider(Spider):
                 if not a_tag or not img_tag:
                     continue
                     
-                # 提取基本属性
                 href = a_tag.get('href', '')
-                vod_id = href.replace(self.host, '') # 提取相对 ID
+                vod_id = href.replace(self.host, '')
                 img_url = img_tag.get('src', '')
                 
-                # 原始完整标题，例如: "Hull City vs Brentford Full Match Replay 25 Oct 2026"
-                raw_title = img_tag.get('alt', '').strip()
+                raw_title = img_tag.get('alt', '')
+                if not raw_title:
+                    raw_title = a_tag.get('title', '')
+                raw_title = raw_title.strip()
+                
                 if not raw_title:
                     continue
                 
-                # 🛠️ 拆分主队与客队逻辑
-                # 兼容大小写的 "vs" 或 "VS" 或 "Vs"
+                # 🛠️ 拆分主队与客队
                 lower_title = raw_title.lower()
                 if 'vs' in lower_title:
-                    # 找到 vs 所在的位置进行切割
                     vs_idx = lower_title.find('vs')
-                    home_team = raw_title[:vs_idx].strip() # "Hull City"
+                    home_team = raw_title[:vs_idx].strip()
                     
-                    # 剩余部分，例如: "Brentford Full Match Replay 25 Oct 2026"
                     remaining = raw_title[vs_idx + 2:].strip()
-                    # 进一步将多余的后缀去掉，只保留精准的客队名称
-                    # 常见后缀：Full Match, Replay, Highlights
                     away_cleanup = remaining
-                    for kw in ['full match', 'replay', 'highlights', 'watch']:
+                    # 清理多余后缀，只保留客队名称
+                    for kw in ['full match', 'replay', 'highlights', 'watch', '2026']:
                         if kw in away_cleanup.lower():
                             kw_idx = away_cleanup.lower().find(kw)
                             away_cleanup = away_cleanup[:kw_idx].strip()
                             
                     away_team = away_cleanup if away_cleanup else remaining
                 else:
-                    # 万一标题里没找到 vs，则保底不拆分
                     home_team = "足球回放"
                     away_team = raw_title
                 
                 videos.append({
                     'vod_id': vod_id,
-                    'vod_name': away_team,   # 🏷️ 客队名称做主标题
-                    'vod_pic': img_url,      # 🖼️ 海报图片
-                    'vod_remarks': home_team # 🏷️ 主队名称做图片角落的标签
+                    'vod_name': away_team,   # 客队做标题
+                    'vod_pic': img_url,      # 海报
+                    'vod_remarks': home_team # 主队做标签
                 })
                 
             result['list'] = videos
             result['limit'] = len(videos)
             
         except Exception as e:
-            print(f"Error in categoryContent: {e}")
+            # 万一发生异常，把错误信息作为一条视频的标题返回，方便在电视屏幕上直接看到报错原因
+            result['list'] = [{
+                'vod_id': 'error',
+                'vod_name': f"解析捕获错误: {str(e)}",
+                'vod_pic': '',
+                'vod_remarks': '请检查'
+            }]
             
         return result
 

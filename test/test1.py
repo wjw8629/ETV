@@ -26,7 +26,7 @@ class Spider(Spider):
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
-    def categoryPage(self, tid, pg, filter):
+        def categoryPage(self, tid, pg, filter):
         # 拼接分类与页码 URL
         url = self.host + tid
         if pg > 1:
@@ -34,55 +34,68 @@ class Spider(Spider):
             
         result = {'list': []}
         try:
-            response = requests.get(url, headers=self.header, timeout=self.timeout)
+            # 升级反爬 Headers
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': self.host,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Connection': 'keep-alive'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=self.timeout)
             if response.status_code != 200:
+                print(f"请求失败，状态码: {response.status_code}")
                 return result
                 
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # 1. 兼容主页轮播图结构 (ticker-slider-items 内部的 a 标签)
-            slider_items = soup.select('.ticker-slider-items a')
+            # 精准定位包含海报的区域（同时兼容你提供的主页和其它页标签结构）
+            items = soup.select('.post-thumb a, .entry-media a, .ticker-slider-items a')
             
-            # 2. 兼容其他页/分类页结构 (post-thumb 内部的 a 标签)
-            normal_items = soup.select('.post-thumb a, .entry-media a')
-            
-            # 合并两个列表进行统一处理
-            all_links = slider_items + normal_items
-            
-            for a_tag in all_links:
+            for a_tag in items:
                 img_tag = a_tag.find('img')
                 if not img_tag:
                     continue
                     
-                # 提取链接与海报地址
                 vod_id = a_tag.get('href', '')
-                vod_pic = img_tag.get('src', '')
+                # 优先读取 src，若有懒加载则读取 data-src 兜底
+                vod_pic = img_tag.get('src', '') or img_tag.get('data-src', '')
                 raw_title = img_tag.get('alt', '') or img_tag.get('title', '')
                 
-                if not raw_title or 'vs' not in raw_title.lower():
-                    # 如果标题里没有 vs，直接用原标题作为备用
-                    vod_name = raw_title
-                    vod_remarks = "Football"
+                if not vod_id or not vod_pic or not raw_title:
+                    continue
+                    
+                # 将文本中的 " vs " 作为切分标志
+                if ' vs ' in raw_title:
+                    parts = raw_title.split(' vs ')
+                    home_team = parts[0].strip()  # 提取主队名称
+                    
+                    # 此时 parts[1] 形如 "Brentford Full Match Replay 25 Oct 2026"
+                    # 我们需要将其后面的多余非队伍文本清洗掉
+                    away_part = parts[1]
+                    for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', '202']:
+                        if keyword in away_part:
+                            away_part = away_part.split(keyword)[0]
+                    
+                    away_team = away_part.strip()  # 提取干净的客队名称
+                    
+                    # 严格执行要求：海报标签显示主队，标题显示客队名称
+                    vod_remarks = home_team
+                    vod_name = away_team
                 else:
-                    # 按照 "vs" 进行切分，转换为小写处理避免大小写不一致
-                    parts = raw_title.lower().split('vs')
-                    home_team = parts[0].strip().title() # 变成首字母大写
-                    
-                    # 后面部分可能带有 "Full Match Replay..."，清理掉
-                    away_part = parts[1].split('full')[0].split('replay')[0].strip()
-                    away_team = away_part.title()
-                    
-                    # 核心需求：海报标签(remarks)显示主队，标题(name)显示客队名称
-                    vod_remarks = home_team  # 标签显示主队
-                    vod_name = away_team     # 标题显示客队
+                    # 兜底清洗逻辑
+                    vod_name = raw_title.split('Full')[0].split('full')[0].strip()
+                    vod_remarks = "Football"
                 
-                # 过滤重复项并添加到结果列表中
                 vod_item = {
                     'vod_id': vod_id,
                     'vod_name': vod_name,
                     'vod_pic': vod_pic,
                     'vod_remarks': vod_remarks
                 }
+                
+                # 过滤可能存在的重复节点
                 if vod_item not in result['list']:
                     result['list'].append(vod_item)
                     
@@ -90,3 +103,4 @@ class Spider(Spider):
             print(f"解析出错: {e}")
             
         return result
+

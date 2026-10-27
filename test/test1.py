@@ -122,7 +122,9 @@ class Spider(Spider):
                     
                     if track_name not in play_tracks:
                         play_tracks[track_name] = []
-                    play_tracks[track_name].append(f"{btn_text}${btn_href}")
+                    
+                    # 🔥 拦截改动：将真实的网页地址绑定在自定义标识符后面，拦截 Fongmi 的直接弹窗行为
+                    play_tracks[track_name].append(f"{btn_text}$fongmi_sniff_{btn_href}")
                 
                 if play_tracks:
                     vod_play_from = "$$".join(play_tracks.keys())
@@ -152,21 +154,20 @@ class Spider(Spider):
         return {'list': []}
 
     def playerContent(self, flag, id, vipFlags):
-        """
-        4. 播放页终极优化：带上专属伪装头，配合 JS 自动点击完成嗅探
-        """
-        result = {'parse': 1, 'playUrl': '', 'url': id}
+        # 🔥 还原真实的网页 URL
+        real_url = id.replace("fongmi_sniff_", "")
         
-        # 🔥 根据你抓包获取的 F12 头部，精准复刻防盗链伪装
+        # 强制声明：parse 为 1，并将 url 塞给内核，让播放器留在内部执行 WebView 嗅探，禁止外弹
+        result = {'parse': 1, 'playUrl': '', 'url': real_url}
+        
         result['header'] = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0',
-            'Referer': 'https://playmogo.com/', # 强制锁定为主域名防盗链源头
+            'Referer': 'https://playmogo.com',
             'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
             'Accept-Language': 'en-US',
             'Connection': 'keep-alive'
         }
         
-        # 自动化 JavaScript 点击脚本注入
         result['js'] = """
         (function() {
             var timer = setInterval(function() {
@@ -174,7 +175,8 @@ class Spider(Spider):
                           document.querySelector('[class*="play"]') || 
                           document.querySelector('video') || 
                           document.querySelector('#player') ||
-                          document.querySelector('.play-button');
+                          document.querySelector('.play-button') ||
+                          document.getElementById('player');
                 if (btn) {
                     clearInterval(timer);
                     if (btn.tagName === 'VIDEO') {

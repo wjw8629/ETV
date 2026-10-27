@@ -71,12 +71,16 @@ class Spider(Spider):
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                     
-                    # 强效缩放暗号：利用 WordPress 缩略图动态裁剪机制
-                    # 在图片直链后面强行截断或追加缩放尺寸参数（例如强制要求服务器生成 440x440 带有缩放等比例黑边的安全图）
+                    # 🚀 宽度对齐优化：剥离原有的高宽裁剪参数，强制指定宽度为 500 像素，高度自适应
                     if "?resize=" in pic_url:
-                        pic_url = pic_url.split("?resize=")[0] + "?resize=440%2C440&ssl=1"
-                    else:
-                        pic_url = pic_url + "?resize=440%2C440&ssl=1"
+                        pic_url = pic_url.split("?resize=")[0]
+                    elif "?w=" in pic_url:
+                        pic_url = pic_url.split("?w=")[0]
+                    elif "?" in pic_url:
+                        pic_url = pic_url.split("?")[0]
+                        
+                    # 注入 w=500 参数：强制让图片以 500px 宽度对齐缩放，不限制高度，从而让宽度完全完整显示
+                    pic_url = pic_url + "?w=500&ssl=1"
                         
                     ep_path = full_url.replace(self.host, "")
                     
@@ -106,7 +110,7 @@ class Spider(Spider):
                     vod_list.append({
                         'vod_id': ep_path,            
                         'vod_name': display_date,     # 下方大字标题栏：显示干净的原生日期（25 Oct 2026）
-                        'vod_pic': pic_url,           # 核心：已经执行等比例缩放、绝对不切队徽的安全图
+                        'vod_pic': pic_url,           # 核心：已经执行宽度自适应、绝对不切队徽的安全图
                         'vod_remarks': match_vs_text  # 海报悬浮角标栏：显示完整的对阵 [主队 VS 客队]
                     })
                 
@@ -115,8 +119,6 @@ class Spider(Spider):
         except:
             pass
         return result
-
-
 
     def detailContent(self, ids):
         return {'list': []}

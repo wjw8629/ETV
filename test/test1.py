@@ -201,16 +201,50 @@ class Spider(Spider):
 
     def playerContent(self, flag, id, vipFlags):
         """
-        4. 播放页：拉起内嵌网盘视频流
+        4. 播放页重构：针对类似 mogo 这种必须“点击播放”才会触发真实链接的网盘
         """
         result = {'parse': 0, 'playUrl': '', 'url': ''}
         try:
-            result['parse'] = 1  # 开启后台强力 Webview 嗅探，自动抓取真实 mp4 轨道
+            # 告诉 Fongmi 这是一个需要动态嗅探的网页链接
+            result['parse'] = 1  
             result['url'] = id
+            
+            # 设置通用的防盗链和浏览器伪装头
             result['header'] = {
                 'User-Agent': self.header['User-Agent'],
                 'Referer': id
             }
+
+            # 🔥 针对各大网盘的自动化交互核心：
+            # 很多视频网盘在初始加载时，网页中心会有一个超大的播放按钮（如 .vjs-big-play-button、#player 或 video 标签本身）
+            # 我们通过注入一段轻量级的 JavaScript 脚本，在网页加载完后自动去寻找并“猛击”这个播放按钮，从而在后台逼出含有 token 的真实地址
+            if 'playmogo' in id or 'vidara' in id or 'vixeo' in id:
+                # 这段 JS 会在 webview 载入后自动执行：尝试寻找各种常见的视频播放器按钮并点击它，或者直接拉起 video 播放
+                js_click = """
+                (function() {
+                    var timer = setInterval(function() {
+                        var btn = document.querySelector('.vjs-big-play-button') || 
+                                  document.querySelector('[class*="play"]') || 
+                                  document.querySelector('video');
+                        if (btn) {
+                            clearInterval(timer);
+                            if (btn.tagName === 'VIDEO') {
+                                btn.play();
+                            } else {
+                                btn.click();
+                            }
+                        }
+                    }, 500);
+                    // 10秒后超时自动清除定时器
+                    setTimeout(function() { clearInterval(timer); }, 10000);
+                })();
+                """
+                # 将该自动化脚本绑定给 Fongmi 播放引擎（部分高级壳子支持通过脚本或特殊配置进行联动嗅探）
+                # 同时为了配合一些壳子，我们在规则中允许捕获媒体资源的特定后缀
+                result['js'] = js_click
+
         except Exception as e:
             pass
+            
         return result
+

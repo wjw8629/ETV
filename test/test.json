@@ -1,8 +1,8 @@
 {
   "sites": [
     {
-      "key": "csp_infobv_test",
-      "name": "test",
+      "key": "csp_soccerfull",
+      "name": "SoccerFull",
       "type": 3,
       "api": "./test.py",
       "searchable": 1,
@@ -10,8 +10,8 @@
       "filterable": 0
     },
     {
-      "key": "csp_infobv_test",
-      "name": "test",
+      "key": "csp_fullshow",
+      "name": "FullShow",
       "type": 3,
       "api": "./test1.py",
       "searchable": 1,

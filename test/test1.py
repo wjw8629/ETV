@@ -63,34 +63,45 @@ class Spider(Spider):
                     full_title = full_name.strip()
                     lower_title = full_title.lower()
                     
-                    # 💡 【核心拦截改动】：如果标题里不包含 "vs"，直接证明是导航菜单（如Home）或杂质广告，当场丢弃过滤
+                    # 铁律拦截：如果标题里不包含 "vs"，直接过滤掉Home或垃圾广告
                     if "vs" not in lower_title:
-                        continue  # 跳过当前循环，不抓取、不打包
+                        continue
                         
-                    # 走到这里，说明百分之百是一场带有 "vs" 的正规球赛
                     if pic_url.startswith("/"):
                         pic_url = self.host + pic_url
                         
                     ep_path = full_url.replace(self.host, "")
                     
-                    # 完美执行你的主客队名字对调切分
+                    # 1. 🔍 拆分出主队
                     idx = lower_title.find("vs")
                     home_team = full_title[:idx].strip().rstrip('-').strip()
                     away_team = full_title[idx+2:].strip()
                     
-                    # 精简去掉客队末尾长长的废话后缀（如 full match replay）
-                    if " full match" in away_team.lower():
-                        f_idx = away_team.lower().find(" full match")
+                    # 2. 🔍 智能切出原网站自带的原生时间后缀（例如 25 Oct 2026）
+                    # 新网站的标题非常有规律，最后 11 个字符通常就是类似 "25 Oct 2026"
+                    display_date = "近期赛事"
+                    # 匹配形如 "25 Oct 2026" 或 "5 Oct 2026" 的原生时间后缀
+                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', away_team)
+                    if date_match:
+                        display_date = date_match.group(1) # 直接白嫖原网站的原生日期，如 25 Oct 2026
+                    
+                    # 3. 🔍 清洗客队名字，把客队末尾所有的 full match 等废话和刚刚切出来的日期全部斩断
+                    if " full" in away_team.lower():
+                        f_idx = away_team.lower().find(" full")
                         away_team = away_team[:f_idx].strip()
-                    if " replay" in away_team.lower():
-                        r_idx = away_team.lower().find(" replay")
-                        away_team = away_team[:r_idx].strip()
+                    else:
+                        # 如果没有 full 关键字，就把刚才匹配到的日期从客队名字里抹掉，防止客队名字太长
+                        if date_match:
+                            away_team = away_team.replace(date_match.group(1), "").strip().rstrip('-').strip()
                         
+                    # 4. 🎨 终极排版打包
+                    match_vs_text = f"{home_team} VS {away_team}" # 拼接出标准的对阵大牌 [皇家马德里 VS 巴塞罗那]
+                    
                     vod_list.append({
                         'vod_id': ep_path,            
-                        'vod_name': f"vs {away_team}", # 标题大字：显示 “vs 客队名”
+                        'vod_name': display_date,     # ⬇️ 大字标题栏：直接显示原生的比赛日期（如 25 Oct 2026）
                         'vod_pic': pic_url,          
-                        'vod_remarks': home_team       # 海报标签：显示 “主场球队名”
+                        'vod_remarks': match_vs_text  # ⬆️ 海报悬浮标签：显示霸气的完整对阵 [主队 VS 客队]
                     })
 
                 

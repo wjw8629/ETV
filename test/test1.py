@@ -96,11 +96,8 @@ class Spider(Spider):
         return video_list
 
     def detailContent(self, ids):
-        """
-        详情页解析：全面启动 playmogo 独占锁定策略
-        """
         result = {'list': []}
-        vod_id = ids[0]
+        vod_id = ids
         url = self.host + vod_id
         try:
             response = requests.get(url, headers=self.header, timeout=self.timeout)
@@ -119,15 +116,18 @@ class Spider(Spider):
                     if not btn_href or 'highlight' in btn_text.lower():
                         continue
                     
-                    # 🔥【精简核心】：只留下带有 playmogo 的链接，其他任何网盘链接全部抛弃
+                    # 严格限定芒果单源锁定策略
                     if 'playmogo.com' not in btn_href:
                         continue
                     
-                    # 强行加上防弹窗嗅探前缀
-                    play_urls.append(f"{btn_text}$fongmi_sniff_{btn_href}")
+                    # 强制在前置阶段将外壳 /d/ 直接转换为嵌入播放页 /e/ 格式，直接剥离弹窗保护层
+                    embed_href = btn_href.replace('/d/', '/e/')
+                    
+                    # 使用 proxy:// 强行拦截随动弹窗，牢牢锁在软件内层嗅探
+                    play_urls.append(f"{btn_text}$proxy://{embed_href}")
                 
                 if play_urls:
-                    vod_play_from = "优质芒果源"
+                    vod_play_from = "精选芒果正片源"
                     vod_play_url = "#".join(play_urls)
                 else:
                     vod_play_from = "暂无芒果回放"
@@ -152,65 +152,80 @@ class Spider(Spider):
 
     def playerContent(self, flag, id, vipFlags):
         """
-        4. 播放页终极攻坚：劫持屏蔽所有穿透广告弹窗，纯净自动化点击嗅探
+        播放页终极重构：消灭 10 秒诱饵假流，物理粉碎弹窗，诱导抓捕真实大流轨
         """
-        real_url = id.replace("proxy://", "").replace("fongmi_sniff_", "")
+        real_url = id.replace("proxy://", "")
         result = {'parse': 1, 'playUrl': '', 'url': real_url}
         
-        # 100% 锁死精准防盗链报头
+        # 精准注入你抓包成功的 Firefox 158 视频播放指纹头
         result['header'] = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0',
-            'Referer': 'https://playmogo.com',
+            'Referer': 'https://playmogo.com',  # 锁死绝对宿主 Referer，防止因页面差异触发网盘风控
             'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
             'Accept-Language': 'en-US',
             'Connection': 'keep-alive'
         }
         
-        # 🔥【史诗级防广告注入脚本】：先下毒废掉所有弹窗，再静默点击起播
+        # 🚀【战术级脚本注入】：开局蒸发蜜罐、完全按死弹窗、高频戳爆正片
         result['js'] = """
         (function() {
-            // ⭐ 第一步：死死锁住全局弹窗 API，使其完全废掉，从根本上解决“弹出超级多广告网页”的痛点
+            // ⭐ 核心绝招一：开局立刻把网页里默认存在、用来欺骗 Fongmi 提前收网的 10 秒假多媒体标签强行拔掉！
+            // 这能让软件的嗅探器一时间在网页里抓不到任何假流，被迫老老实实守在原地等待！
+            var meltBait = function() {
+                var baitVideo = document.querySelector('video');
+                if (baitVideo) {
+                    baitVideo.removeAttribute('src');
+                    baitVideo.load();
+                    baitVideo.parentNode && baitVideo.parentNode.removeChild(baitVideo);
+                }
+            };
+            // 连切两次，确保假多媒体轨道从 HTML 里完全物理蒸发
+            meltBait();
+            setTimeout(meltBait, 150);
+
+            // ⭐ 核心绝招二：把 window.open 强行改写成废函数，彻底解决“弹出超级多垃圾网页”的痛点
             window.open = function() { return null; };
             window.openWindow = function() { return null; };
             
-            // ⭐ 第二步：全面清洗并拦截网页里的恶意超链接外跳转行为
-            var cleanAds = function() {
-                var links = document.querySelectorAll('a');
-                for (var i = 0; i < links.length; i++) {
-                    var link = links[i];
-                    // 只要点击可能触发新窗口跳转的，一律废除 href 或限制在原地
-                    if (link.getAttribute('target') === '_blank' || link.outerHTML.indexOf('onclick') !== -1) {
-                        link.setAttribute('target', '_self');
-                        if (link.href && link.href.indexOf('playmogo') === -1 && link.href.indexOf('javascript') === -1) {
-                            link.href = 'javascript:void(0);';
+            // 地毯式清洗穿透广告超链接，限制其原地打转，防止其偷偷触发任何间接弹窗
+            var sterilizeAds = function() {
+                var tags = document.querySelectorAll('a');
+                for (var i = 0; i < tags.length; i++) {
+                    var a = tags[i];
+                    if (a.getAttribute('target') === '_blank' || a.outerHTML.indexOf('onclick') !== -1) {
+                        a.setAttribute('target', '_self');
+                        if (a.href && a.href.indexOf('playmogo') === -1 && a.href.indexOf('javascript') === -1) {
+                            a.href = 'javascript:void(0);';
                         }
                     }
                 }
             };
-            
-            // 每 200 毫秒疯狂扫描一次页面，动态消灭新长出来的广告超链接
-            setInterval(cleanAds, 200);
+            setInterval(sterilizeAds, 200);
 
-            # ⭐ 第三步：在完全安全无弹窗的环境中，高频寻找真正的播放大按钮并安全戳活
-            var timer = setInterval(function() {
-                var btn = document.querySelector('.vjs-big-play-button') || 
-                          document.querySelector('#os_player') || 
-                          document.querySelector('video') || 
-                          document.getElementById('player') ||
-                          document.querySelector('.play-button') ||
-                          document.getElementById('vplayer');
-                if (btn) {
-                    clearInterval(timer);
-                    if (btn.tagName === 'VIDEO') {
-                        btn.play();
+            // ⭐ 核心绝招三：在干净无诱饵、无弹窗的高安全环境下，高频去触发点击真正的播放器核心触点
+            var clickCount = 0;
+            var snifferTimer = setInterval(function() {
+                var targetBtn = document.querySelector('.vjs-big-play-button') || 
+                                document.querySelector('#os_player') || 
+                                document.getElementById('player') ||
+                                document.querySelector('.play-button') ||
+                                document.getElementById('vplayer');
+                if (targetBtn) {
+                    // 如果它在点击后又偷偷生出了新的 video 标签，说明真正的异步 cloudatacdn 流被我们点出来了！
+                    if (targetBtn.tagName === 'VIDEO') {
+                        targetBtn.play();
                     } else {
-                        // 触发点击，此时 window.open 已被废，所有弹窗广告全部哑火！
-                        btn.click();
+                        targetBtn.click();
+                    }
+                    clickCount++;
+                    // 连戳 3 次彻底戳活隐藏的前端异步网络请求后，清除自身定时器
+                    if (clickCount >= 3) {
+                        clearInterval(snifferTimer);
                     }
                 }
             }, 300);
             
-            setTimeout(function() { clearInterval(timer); }, 12000);
+            setTimeout(function() { clearInterval(snifferTimer); }, 10000);
         })();
         """
         return result

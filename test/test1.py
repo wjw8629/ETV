@@ -23,7 +23,7 @@ class Spider(Spider):
         result['class'].append({'type_name': '西甲', 'type_id': '/leagues/la-liga'})
         result['class'].append({'type_name': '德甲', 'type_id': '/leagues/bundesliga'})
         result['class'].append({'type_name': '意甲', 'type_id': '/leagues/serie-a'})
-        result['class'].append({'type_name': '法甲', 'type_id': 'leagues/ligue-1'})
+        result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
     def categoryContent(self, tid, pg, filter, extend):

@@ -45,13 +45,14 @@ class Spider(Spider):
                 reg_rule = r'src="([^"]+)"[\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
                 matches = re.findall(reg_rule, html_content)
                 
-                # 💡【精准修复算法：将任意球队名字完美压缩进固定 7 格宽度】
+                # 💡【核心算法：将任意球队名字完美压缩进固定 7 格宽度】
                 def format_team_name(team_name):
                     team_name = team_name.strip()
                     # 用空格将可能存在的多个单词切开
                     words = [w for w in team_name.split(' ') if w]
                     
                     if len(words) >= 2:
+                        # 🚀 完美修复：精确提取第一个和第二个单词的前 3 个字母进行拼接
                         part1 = words[0][:3]
                         part2 = words[1][:3]
                         res = f"{part1} {part2}"
@@ -105,7 +106,7 @@ class Spider(Spider):
                         home_team = clean_title[:idx].strip()
                         away_team = clean_title[idx+2:].strip()
                     
-                    # 清洗可能遗留的包裹中划线
+                    # 清浅包裹的中划线
                     home_team = home_team.rstrip('-').rstrip('–').strip()
                     away_team = away_team.lstrip('-').lstrip('–').rstrip('-').rstrip('–').strip()
                     
@@ -127,7 +128,7 @@ class Spider(Spider):
                 result['list'] = vod_list
                 result['total'] = len(vod_list)
         except Exception as e:
-            print(f"Error in categoryContent: {e}")
+            pass
             
         return result
 

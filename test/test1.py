@@ -27,75 +27,72 @@ class Spider(Spider):
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
+        # 用纯正则安全重写的一级列表页
     def categoryContent(self, tid, pg, filter, extend):
-        result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 0, 'total': 9999}
+        try:
+            pg = int(pg)
+        except:
+            pg = 1
+            
+        result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
         
+        # 拼接分类和分页 URL
         url = self.host if tid == '/' else f"{self.host}{tid}"
-        if int(pg) > 1:
+        if pg > 1:
             url = f"{url}/page/{pg}" if url.endswith('/') else f"{url}/page/{pg}/"
             
         try:
-            # 导入标准 requests，增加 verify=False 防止盒子因证书问题报错
             import requests
-            rsp = requests.get(url, headers=self.header, timeout=self.timeout, verify=False)
-            html_text = rsp.text
+            import re
             
-            from bs4 import BeautifulSoup
-            # 💡 安全修正：将 'lxml' 换成 Python 自带、完全通用的 'html.parser'
-            soup = BeautifulSoup(html_text, 'html.parser')
-            
-            videos = []
-            thumb_divs = soup.find_all('div', class_='post-thumb')
-            
-            for div in thumb_divs:
-                a_tag = div.find('a', class_='entry-image-link')
-                img_tag = div.find('img')
-                if not a_tag or not img_tag:
-                    continue
+            # 发起请求，verify=False 规避盒子老旧系统证书报错
+            r = requests.get(url, headers=self.header, timeout=self.timeout, verify=False)
+            if r.status_code == 200:
+                html_content = r.text
+                
+                # 🔍 精准匹配你在 HTML 里面给我的 post-thumb 链接、图片、以及 alt 完整标题
+                reg_rule = r'class="post-thumb[^"]*">.*?href="([^"]+)"[^>]*><img[^>]*src="([^"]+)"[^>]*alt="([^"]+)"'
+                matches = re.findall(reg_rule, html_content)
+                
+                vod_list = []
+                for href, pic_url, full_title in matches:
+                    # 转换相对路径ID
+                    vod_id = href.replace(self.host, '')
                     
-                href = a_tag.get('href', '')
-                vod_id = href.replace(self.host, '')
-                img_url = img_tag.get('src', '')
-                
-                raw_title = img_tag.get('alt', '')
-                if not raw_title:
-                    raw_title = a_tag.get('title', '')
-                raw_title = raw_title.strip()
-                
-                if not raw_title:
-                    continue
-                
-                # 🛠️ 拆分主队与客队
-                lower_title = raw_title.lower()
-                if 'vs' in lower_title:
-                    vs_idx = lower_title.find('vs')
-                    home_team = raw_title[:vs_idx].strip()
+                    full_name = full_title.strip()
+                    lower_title = full_name.lower()
                     
-                    remaining = raw_title[vs_idx + 2:].strip()
-                    away_cleanup = remaining
-                    # 清理多余后缀，只保留客队名称
-                    for kw in ['full match', 'replay', 'highlights', 'watch', '2026']:
-                        if kw in away_cleanup.lower():
-                            kw_idx = away_cleanup.lower().find(kw)
-                            away_cleanup = away_cleanup[:kw_idx].strip()
-                            
-                    away_team = away_cleanup if away_cleanup else remaining
-                else:
-                    home_team = "足球回放"
-                    away_team = raw_title
-                
-                videos.append({
-                    'vod_id': vod_id,
-                    'vod_name': away_team,   # 客队做标题
-                    'vod_pic': img_url,      # 海报
-                    'vod_remarks': home_team # 主队做标签
-                })
-                
-            result['list'] = videos
-            result['limit'] = len(videos)
-            
+                    # 🛠️ 严格按照你的指示切分：主队做标签（remarks），客队做标题（name）
+                    if "vs" in lower_title:
+                        idx = lower_title.find("vs")
+                        # 切出主队名称
+                        home_team = full_name[:idx].strip().rstrip('-').strip()
+                        
+                        # 切出剩余部分，并清洗多余后缀
+                        remaining = full_name[idx+2:].strip().lstrip('-').strip()
+                        away_cleanup = remaining
+                        for kw in ['full match', 'replay', 'highlights', 'watch', '2026']:
+                            if kw in away_cleanup.lower():
+                                kw_idx = away_cleanup.lower().find(kw)
+                                away_cleanup = away_cleanup[:kw_idx].strip()
+                                
+                        away_team = away_cleanup if away_cleanup else remaining
+                    else:
+                        # 保底逻辑
+                        home_team = "足球赛事"
+                        away_team = full_name
+                        
+                    vod_list.append({
+                        'vod_id': vod_id,            
+                        'vod_name': away_team,     # 🏷️ 客队名称做主标题
+                        'vod_pic': pic_url,          
+                        'vod_remarks': home_team   # 🏷️ 主队名称做图片角落的标签
+                    })
+
+                result['list'] = vod_list
+                result['total'] = len(vod_list)
         except Exception as e:
-            # 万一发生异常，把错误信息作为一条视频的标题返回，方便在电视屏幕上直接看到报错原因
+            # 即使报错也绝不让App闪退，而是把错误打印在电视的第一条卡片上
             result['list'] = [{
                 'vod_id': 'error',
                 'vod_name': f"解析捕获错误: {str(e)}",

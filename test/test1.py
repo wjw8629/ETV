@@ -7,7 +7,7 @@ class Spider(Spider):
         return 'FullShowSpider'
 
     def init(self, extend=""):
-        # ⚠️ 确保主域名完全精准，不要带末尾的斜杠
+        # ⚠️ 确保主域名包含斜杠，避免相对路径拼接黏连错误
         self.host = 'https://fullmatchshows.com'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -41,8 +41,8 @@ class Spider(Spider):
             if r.status_code == 200:
                 html_content = r.text
                 
-                # 精准正则：捞取海报、路径、比赛全名
-                reg_rule = r'src="([^"]+)"[\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
+                # 🚀 增强版海报精准正则：完美兼容 src / data-src 以及各类单双引号，防止海报抓取落空
+                reg_rule = r'(?:src|data-src)=["\']([^"\']+)["\'][\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
                 matches = re.findall(reg_rule, html_content)
                 
                 # 💡【核心算法：将任意球队名字完美压缩进固定 7 格宽度】
@@ -52,7 +52,6 @@ class Spider(Spider):
                     words = [w for w in team_name.split(' ') if w]
                     
                     if len(words) >= 2:
-                        # 🚀 完美修复：精确提取第一个和第二个单词的前 3 个字母进行拼接
                         part1 = words[0][:3]
                         part2 = words[1][:3]
                         res = f"{part1} {part2}"
@@ -72,8 +71,10 @@ class Spider(Spider):
                     if "vs" not in lower_title:
                         continue
                         
-                    # 💡 图片部分回归最初始抓取逻辑，不做任何加工
+                    # 💡 安全补全相对路径链接
                     if pic_url.startswith("/"):
+                        pic_url = self.host.rstrip('/') + pic_url
+                    elif not pic_url.startswith("http"):
                         pic_url = self.host + pic_url
                         
                     ep_path = full_url.replace(self.host, "")
@@ -82,7 +83,7 @@ class Spider(Spider):
                     display_date = "近期"
                     date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', full_title)
                     if date_match:
-                        display_date = date_match.group(1).strip()  # 真正安全抓取原生日期：如 "26 Oct 2026"
+                        display_date = date_match.group(1).strip()  # 安全抓取原生日期
                         # 先在清洗大标题时将这一段日期扣掉，避免干扰后续球队名字拆分
                         clean_title = full_title.replace(date_match.group(0), "").strip()
                     else:

@@ -8,7 +8,7 @@ class Spider(Spider):
 
     def init(self, extend=""):
         # ⚠️ 确保主域名完全精准，不要带末尾的斜杠
-        self.host = 'https://fullmatchshows.com/'  
+        self.host = 'https://fullmatchshows.com'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': self.host
@@ -24,10 +24,9 @@ class Spider(Spider):
         result['class'].append({'type_name': '德甲', 'type_id': '/leagues/bundesliga'})
         result['class'].append({'type_name': '意甲', 'type_id': '/leagues/serie-a'})
         result['class'].append({'type_name': '法甲', 'type_id': 'leagues/ligue-1'})
-
         return result
 
-           def categoryContent(self, tid, pg, filter, extend):
+    def categoryContent(self, tid, pg, filter, extend):
         pg = int(pg)
         result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
         
@@ -38,9 +37,6 @@ class Spider(Spider):
             target_url = f"{self.host}{tid}"
             
         try:
-            import requests
-            import re
-            
             r = requests.get(target_url, headers=self.header, timeout=self.timeout)
             if r.status_code == 200:
                 html_content = r.text
@@ -56,7 +52,6 @@ class Spider(Spider):
                     words = [w for w in team_name.split(' ') if w]
                     
                     if len(words) >= 2:
-                        # 🚀 彻底修复切片死穴：words[0] 是第一个单词，[:3] 才是提取其前 3 个字母
                         part1 = words[0][:3]
                         part2 = words[1][:3]
                         res = f"{part1} {part2}"
@@ -131,10 +126,10 @@ class Spider(Spider):
                 
                 result['list'] = vod_list
                 result['total'] = len(vod_list)
-        except:
-            pass
+        except Exception as e:
+            print(f"Error in categoryContent: {e}")
+            
         return result
-
 
     def detailContent(self, ids):
         return {'list': []}

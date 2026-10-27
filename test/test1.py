@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import requests
+from bs4 import BeautifulSoup
 from base.spider import Spider
 
 class Spider(Spider):
@@ -7,7 +8,6 @@ class Spider(Spider):
         return 'FullShowSpider'
 
     def init(self, extend=""):
-        # ⚠️ 确保主域名包含斜杠，避免相对路径拼接黏连错误
         self.host = 'https://fullmatchshows.com'  
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -26,127 +26,67 @@ class Spider(Spider):
         result['class'].append({'type_name': '法甲', 'type_id': '/leagues/ligue-1'})
         return result
 
-    def categoryContent(self, tid, pg, filter, extend):
-        pg = int(pg)
-        result = {'list': [], 'page': pg, 'pagecount': 999, 'limit': 24, 'total': 0}
-        
-        # 兼容 WordPress 的标准翻页路由
+    def categoryPage(self, tid, pg, filter):
+        # 拼接分类与页码 URL
+        url = self.host + tid
         if pg > 1:
-            target_url = f"{self.host}{tid}page/{pg}/" if tid.endswith("/") else f"{self.host}{tid}/page/{pg}/"
-        else:
-            target_url = f"{self.host}{tid}"
+            url = f"{url}/page/{pg}"
             
+        result = {'list': []}
         try:
-            r = requests.get(target_url, headers=self.header, timeout=self.timeout)
-            if r.status_code == 200:
-                html_content = r.text
+            response = requests.get(url, headers=self.header, timeout=self.timeout)
+            if response.status_code != 200:
+                return result
                 
-                # 🚀 增强版海报精准正则：完美兼容 src / data-src 以及各类单双引号，防止海报抓取落空
-                reg_rule = r'(?:src|data-src)=["\']([^"\']+)["\'][\s\S]*?itemprop="headline"[\s\S]*?href="([^"]+)"[^>]*>([^<]+)</a>'
-                matches = re.findall(reg_rule, html_content)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 1. 兼容主页轮播图结构 (ticker-slider-items 内部的 a 标签)
+            slider_items = soup.select('.ticker-slider-items a')
+            
+            # 2. 兼容其他页/分类页结构 (post-thumb 内部的 a 标签)
+            normal_items = soup.select('.post-thumb a, .entry-media a')
+            
+            # 合并两个列表进行统一处理
+            all_links = slider_items + normal_items
+            
+            for a_tag in all_links:
+                img_tag = a_tag.find('img')
+                if not img_tag:
+                    continue
+                    
+                # 提取链接与海报地址
+                vod_id = a_tag.get('href', '')
+                vod_pic = img_tag.get('src', '')
+                raw_title = img_tag.get('alt', '') or img_tag.get('title', '')
                 
-                # 💡【核心算法：将任意球队名字完美压缩进固定 7 格宽度】
-                def format_team_name(team_name):
-                    team_name = team_name.strip()
-                    # 用空格将可能存在的多个单词切开
-                    words = [w for w in team_name.split(' ') if w]
+                if not raw_title or 'vs' not in raw_title.lower():
+                    # 如果标题里没有 vs，直接用原标题作为备用
+                    vod_name = raw_title
+                    vod_remarks = "Football"
+                else:
+                    # 按照 "vs" 进行切分，转换为小写处理避免大小写不一致
+                    parts = raw_title.lower().split('vs')
+                    home_team = parts[0].strip().title() # 变成首字母大写
                     
-                    if len(words) >= 2:
-                        part1 = words[0][:3]
-                        part2 = words[1][:3]
-                        res = f"{part1} {part2}"
-                    else:
-                        # 单单词：直接截取前 7 个字母
-                        res = team_name[:7]
+                    # 后面部分可能带有 "Full Match Replay..."，清理掉
+                    away_part = parts[1].split('full')[0].split('replay')[0].strip()
+                    away_team = away_part.title()
                     
-                    # 补齐机制：如果名字太短，用空格往后补满 7 个格子，确保对齐
-                    return res.ljust(7)
-
-                vod_list = []
-                for pic_url, full_url, full_name in matches:
-                    full_title = full_name.strip()
-                    lower_title = full_title.lower()
-                    
-                    # 🔥 拦截过滤：如果标题里不包含 "vs"，说明是垃圾内容，直接过滤丢弃
-                    if "vs" not in lower_title:
-                        continue
-                        
-                    # 💡 安全补全相对路径链接
-                    if pic_url.startswith("/"):
-                        pic_url = self.host.rstrip('/') + pic_url
-                    elif not pic_url.startswith("http"):
-                        pic_url = self.host + pic_url
-                        
-                    ep_path = full_url.replace(self.host, "")
-                    
-                    # 🚀【步骤 1：第一步就在全名里抢先截取原汁原味的原生日期】
-                    display_date = "近期"
-                    date_match = re.search(r'(\d{1,2}\s+[a-zA-Z]{3}\s+\d{4})', full_title)
-                    if date_match:
-                        display_date = date_match.group(1).strip()  # 安全抓取原生日期
-                        # 先在清洗大标题时将这一段日期扣掉，避免干扰后续球队名字拆分
-                        clean_title = full_title.replace(date_match.group(0), "").strip()
-                    else:
-                        clean_title = full_title
-                    
-                    # 🚀【步骤 2：剥离无用后缀废话】
-                    for word in ["full match replay", "full match", "replay", "highlights"]:
-                        if word in clean_title.lower():
-                            w_idx = clean_title.lower().find(word)
-                            clean_title = clean_title[:w_idx].strip()
-                    
-                    # 🚀【步骤 3：切分主客队】
-                    vs_match = re.search(r'\s+[vV][sS]\s+', clean_title)
-                    if vs_match:
-                        vs_str = vs_match.group(0)
-                        parts = clean_title.split(vs_str)
-                        home_team = parts[0].strip()
-                        away_team = parts[1].strip()
-                    else:
-                        idx = clean_title.lower().find("vs")
-                        home_team = clean_title[:idx].strip()
-                        away_team = clean_title[idx+2:].strip()
-                    
-                    # 清浅包裹的中划线
-                    home_team = home_team.rstrip('-').rstrip('–').strip()
-                    away_team = away_team.lstrip('-').lstrip('–').rstrip('-').rstrip('–').strip()
-                    
-                    # 🚀 调用安全修正后的 7 格宽度分配逻辑加工名字
-                    home_final = format_team_name(home_team)
-                    away_final = format_team_name(away_team)
-                    
-                    # 5. 组装：标签是原装日期，标题是 7 格球队对决
-                    tag_remark = display_date                    # 🏷️ 标签角落栏：原生日期显示
-                    title_name = f"{home_final} - {away_final}"   # 📺 大字标题栏：Man Uni - Che lse 经典格式
-                    
-                    vod_list.append({
-                        'vod_id': ep_path,            
-                        'vod_name': title_name,       
-                        'vod_pic': pic_url,           
-                        'vod_remarks': tag_remark     
-                    })
+                    # 核心需求：海报标签(remarks)显示主队，标题(name)显示客队名称
+                    vod_remarks = home_team  # 标签显示主队
+                    vod_name = away_team     # 标题显示客队
                 
-                result['list'] = vod_list
-                result['total'] = len(vod_list)
+                # 过滤重复项并添加到结果列表中
+                vod_item = {
+                    'vod_id': vod_id,
+                    'vod_name': vod_name,
+                    'vod_pic': vod_pic,
+                    'vod_remarks': vod_remarks
+                }
+                if vod_item not in result['list']:
+                    result['list'].append(vod_item)
+                    
         except Exception as e:
-            pass
+            print(f"解析出错: {e}")
             
         return result
-
-    def detailContent(self, ids):
-        return {'list': []}
-
-    def playerContent(self, flag, id, vipFlags):
-        return {'parse': 0, 'url': ''}
-
-    def searchContent(self, key, quick, pg="1"):
-        return {'list': []}
-
-    def isVideoFormat(self, url):
-        pass
-
-    def manualVideoCheck(self):
-        pass
-
-    def destroy(self):
-        pass

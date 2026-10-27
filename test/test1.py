@@ -4,7 +4,7 @@ from base.spider import Spider
 
 class Spider(Spider):
     def getName(self):
-        return 'SoccerFullSpider'
+        return 'FullShowSpider'
 
     def init(self, extend=""):
         # ⚠️ 确保主域名完全精准，不要带末尾的斜杠

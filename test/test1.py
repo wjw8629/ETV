@@ -35,25 +35,57 @@ class Spider(Spider):
                 return result
             soup = BeautifulSoup(response.text, 'html.parser')
             matches = soup.find_all('a', class_='entry-image-link')
+            
             for match in matches:
                 img_tag = match.find('img')
                 if not img_tag:
                     continue
-                title = img_tag.get('alt', '').strip()
+                
+                raw_title = img_tag.get('alt', '').strip()
                 href = match.get('href', '')
                 pic = img_tag.get('src', '')
-                if not title or not href:
+                
+                if not raw_title or not href:
                     continue
+
+                # 1. 统一转换大小写并判断是否包含 vs，没有则不抓取
+                lower_title = raw_title.lower()
+                if 'vs' not in lower_title:
+                    continue
+
+                # 2. 找到实际的 vs 分隔符并切分出主队和客队
+                vs_marker = "vs"
+                if "VS" in raw_title:
+                    vs_marker = "VS"
+                elif "Vs" in raw_title:
+                    vs_marker = "Vs"
+                
+                # 切分字符串，例如 "Hull City vs Brentford Full Match Replay..."
+                parts = raw_title.split(vs_marker)
+                home_team = parts[0].strip()   # 主队：Hull City
+                away_part = parts[1].strip()   # 客队及后续后缀：Brentford Full Match Replay...
+                
+                # 进一步清洗客队：通常只需要拿到第一个空格前的词，或者清理掉 Replay 等后缀
+                # 这里根据目标网页特征，客队后面多带有 Full Match, Replay, 25 Oct 等
+                # 我们通过常见的关键词切分，提取出干净的客队名
+                away_team = away_part
+                for keyword in ['Full', 'full', 'Match', 'match', 'Replay', 'replay', 'Highlight']:
+                    if keyword in away_team:
+                        away_team = away_team.split(keyword)[0].strip()
+
                 vod_id = href.replace(self.host, '')
+                
+                # 3. 按照你的要求：图片标签(vod_name)改成主队名，而标题/备注等体现客队
                 result['list'].append({
                     'vod_id': vod_id,
-                    'vod_name': title,
+                    'vod_name': home_team,                    # 图片标签（海报主标题）改成：主队名
                     'vod_pic': pic,
-                    'vod_remarks': '全场回放'
+                    'vod_remarks': f"客队: {away_team}"        # 备注或副标题显式体现：客队名
                 })
         except Exception as e:
             pass
         return result
+
 
     def categoryContent(self, tid, pg, filter, extend):
         """

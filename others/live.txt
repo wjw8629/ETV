@@ -4,7 +4,7 @@ CCTV2,http://74.91.26.218:82/live/cctv2hd.m3u8
 CCTV3,http://74.91.26.218:82/live/cctv3hd.m3u8
 CCTV4,http://74.91.26.218:82/live/cctv4hd.m3u8
 CCTV5,https://huavod.evan8629.workers.dev/
-CCTV5+,https://cp5.evan8629.workers.dev
+CCTV5,https://txycdn6.video.qq.com/1369718502.m3u8?time=1793055736&cdn=txycdn&sdtfrom=v401010931632&platform=4010603&butype=31&HLSP2P=1&vkey=nvkey_AQQgIP-DYKs0C11H-Eax37sPG5yxqsjNuwMktxYQB-K4f_1yENXlsEg2pRvYO30R89_NnFQBcPy9xMnPy-Zlz2p1pscizNEGOdrL2y5F3O-QdiNhrZa15LPDGyS-OY9i1aod0Ilb8amGVT_UM3s_StvacVNA1LpoLIqzRfRYplntzbEzLNZ_O_A_A38FkksD5Mih7CcQ2yahxO7k8WFzDYRNtf7KARUQf6-cyrB6a0SPuI7zjGyFw0vguYJM5X3W1ynM9kKQfWblnqro-tIGZ7T2oPW4MnC6BRkt9E-IA0_cqf7UBmWV1nV-sIVeuLAgjQhZN7kf09r8Ztww7AtlWR-Cbf-vkV8ZOSbxp00QtVJab0nh4QXB_UMU4I9xf6IwexGfDPufedDTXghELhEESb43DngxKQ4o0hajwhMu0iar0S209D0lsF8r6rMaGI6rZOtJVWT8izozOmDvkMqGu30oUlKs1EA4VJGBjwUVNoxaFyPZbibapEAdrddHCfRCa6uOuppFgfYt7QFsLkW924dMtbtbyyyutNfFf3eSgywuPe3OgUdr&drmtype=0
 CCTV6,http://74.91.26.218:82/live/cctv6hd.m3u8
 CCTV7,http://74.91.26.218:82/live/cctv7hd.m3u8
 CCTV8,http://74.91.26.218:82/live/cctv8hd.m3u8

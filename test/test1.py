@@ -25,11 +25,6 @@ class Spider(Spider):
         result['class'].append({'type_name': '意甲', 'type_id': '/leagues/serie-a'})
         result['class'].append({'type_name': '法甲', 'type_id': 'leagues/ligue-1'})
 
-        result['style'] = {
-            "type": "rect",
-            "ratio": 1.777
-        }
-        
         return result
 
 

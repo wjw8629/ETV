@@ -96,6 +96,9 @@ class Spider(Spider):
         return video_list
 
     def detailContent(self, ids):
+        """
+        详情页解析：全面启动 playmogo 独占锁定策略
+        """
         result = {'list': []}
         vod_id = ids[0]
         url = self.host + vod_id
@@ -107,34 +110,28 @@ class Spider(Spider):
                 vod_name = title_tag.text.strip() if title_tag else "赛事回放"
                 
                 buttons = soup.find_all('a', class_='myButton')
-                play_tracks = {}
+                play_urls = []
+                
                 for btn in buttons:
                     btn_text = btn.text.strip()
                     btn_href = btn.get('href', '')
+                    
                     if not btn_href or 'highlight' in btn_text.lower():
                         continue
                     
-                    track_name = "默认线路"
-                    for domain in ['playmogo', 'vidaraa', 'vidara', 'vixeo']:
-                        if domain in btn_href:
-                            track_name = f"源-{domain}"
-                            break
+                    # 🔥【精简核心】：只留下带有 playmogo 的链接，其他任何网盘链接全部抛弃
+                    if 'playmogo.com' not in btn_href:
+                        continue
                     
-                    if track_name not in play_tracks:
-                        play_tracks[track_name] = []
-                    
-                    # 🔥 拦截改动：将真实的网页地址绑定在自定义标识符后面，拦截 Fongmi 的直接弹窗行为
-                    play_tracks[track_name].append(f"{btn_text}$fongmi_sniff_{btn_href}")
+                    # 强行加上防弹窗嗅探前缀
+                    play_urls.append(f"{btn_text}$fongmi_sniff_{btn_href}")
                 
-                if play_tracks:
-                    vod_play_from = "$$".join(play_tracks.keys())
-                    track_urls = []
-                    for track in play_tracks.keys():
-                        track_urls.append("#".join(play_tracks[track]))
-                    vod_play_url = "$$".join(track_urls)
+                if play_urls:
+                    vod_play_from = "优质芒果源"
+                    vod_play_url = "#".join(play_urls)
                 else:
-                    vod_play_from = "暂无回放"
-                    vod_play_url = "无可用正片$#"
+                    vod_play_from = "暂无芒果回放"
+                    vod_play_url = "无正片可用$#"
 
                 vod = {
                     'vod_id': vod_id,
@@ -154,52 +151,31 @@ class Spider(Spider):
         return {'list': []}
 
     def playerContent(self, flag, id, vipFlags):
-        # 1. 还原之前详情页传过来的真实独立网盘网页 URL
+        """
+        播放页：全力伪装出完全契合 playmogo 抓包包的网络指纹
+        """
         real_url = id.replace("fongmi_sniff_", "")
-        
-        # 2. 精准针对 DoodStream 这类嵌套 iframe 的网盘进行提取升级
-        if "dood" in real_url or "doodstream" in real_url:
-            try:
-                # 在后台悄悄拉取外壳网页
-                res = requests.get(real_url, headers=self.header, timeout=self.timeout)
-                if res.status_code == 200:
-                    soup = BeautifulSoup(res.text, 'html.parser')
-                    # 强行挖出真正包含视频器的 /e/xxxx 链接
-                    iframe = soup.find('iframe')
-                    if iframe and iframe.get('src'):
-                        iframe_src = iframe.get('src')
-                        # 组装成真正的底层播放页：https://doodstream.com
-                        if iframe_src.startswith('/'):
-                            from urllib.parse import urlparse
-                            parsed_uri = urlparse(real_url)
-                            domain = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-                            real_url = domain + iframe_src
-                        else:
-                            real_url = iframe_src
-            except:
-                pass
-
-        # 3. 拦截弹窗，强制锁在 Fongmi 播放内核中进行强力嗅探
         result = {'parse': 1, 'playUrl': '', 'url': real_url}
         
-        # 4. 根据新源码特征，强力注入专属防盗链 Cookie 与伪装头
+        # 100% 还原你 F12 抓包抓下来的头部伪装规则
         result['header'] = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0',
             'Referer': 'https://playmogo.com',
-            'Cookie': 'dref_url=https://fullmatchshows.com/', # 🔥 破解 Doodstream 拦截的核心 Cookie
             'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
-            'Accept-Language': 'en-US'
+            'Accept-Language': 'en-US',
+            'Connection': 'keep-alive'
         }
         
-        # 5. 注入盲点自动脚本：进入真正的 /e/ 播放层后，以 0.3 秒的高频猛击网页上的各种视频触点
+        # 针对 mango 源自动化点击激活脚本
         result['js'] = """
         (function() {
             var timer = setInterval(function() {
                 var btn = document.querySelector('.vjs-big-play-button') || 
-                          document.querySelector('#os_player') || 
+                          document.querySelector('[class*="play"]') || 
                           document.querySelector('video') || 
-                          document.getElementById('vplayer') ||
-                          document.querySelector('[class*="play"]');
+                          document.querySelector('#player') ||
+                          document.querySelector('.play-button') ||
+                          document.getElementById('player');
                 if (btn) {
                     clearInterval(timer);
                     if (btn.tagName === 'VIDEO') {
@@ -208,8 +184,8 @@ class Spider(Spider):
                         btn.click();
                     }
                 }
-            }, 300);
-            setTimeout(function() { clearInterval(timer); }, 12000);
+            }, 500);
+            setTimeout(function() { clearInterval(timer); }, 10000);
         })();
         """
         return result

@@ -152,12 +152,12 @@ class Spider(Spider):
 
     def playerContent(self, flag, id, vipFlags):
         """
-        播放页：全力伪装出完全契合 playmogo 抓包包的网络指纹
+        4. 播放页终极攻坚：劫持屏蔽所有穿透广告弹窗，纯净自动化点击嗅探
         """
-        real_url = id.replace("fongmi_sniff_", "")
+        real_url = id.replace("proxy://", "").replace("fongmi_sniff_", "")
         result = {'parse': 1, 'playUrl': '', 'url': real_url}
         
-        # 100% 还原你 F12 抓包抓下来的头部伪装规则
+        # 100% 锁死精准防盗链报头
         result['header'] = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0',
             'Referer': 'https://playmogo.com',
@@ -166,26 +166,51 @@ class Spider(Spider):
             'Connection': 'keep-alive'
         }
         
-        # 针对 mango 源自动化点击激活脚本
+        # 🔥【史诗级防广告注入脚本】：先下毒废掉所有弹窗，再静默点击起播
         result['js'] = """
         (function() {
+            // ⭐ 第一步：死死锁住全局弹窗 API，使其完全废掉，从根本上解决“弹出超级多广告网页”的痛点
+            window.open = function() { return null; };
+            window.openWindow = function() { return null; };
+            
+            // ⭐ 第二步：全面清洗并拦截网页里的恶意超链接外跳转行为
+            var cleanAds = function() {
+                var links = document.querySelectorAll('a');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    // 只要点击可能触发新窗口跳转的，一律废除 href 或限制在原地
+                    if (link.getAttribute('target') === '_blank' || link.outerHTML.indexOf('onclick') !== -1) {
+                        link.setAttribute('target', '_self');
+                        if (link.href && link.href.indexOf('playmogo') === -1 && link.href.indexOf('javascript') === -1) {
+                            link.href = 'javascript:void(0);';
+                        }
+                    }
+                }
+            };
+            
+            // 每 200 毫秒疯狂扫描一次页面，动态消灭新长出来的广告超链接
+            setInterval(cleanAds, 200);
+
+            # ⭐ 第三步：在完全安全无弹窗的环境中，高频寻找真正的播放大按钮并安全戳活
             var timer = setInterval(function() {
                 var btn = document.querySelector('.vjs-big-play-button') || 
-                          document.querySelector('[class*="play"]') || 
+                          document.querySelector('#os_player') || 
                           document.querySelector('video') || 
-                          document.querySelector('#player') ||
+                          document.getElementById('player') ||
                           document.querySelector('.play-button') ||
-                          document.getElementById('player');
+                          document.getElementById('vplayer');
                 if (btn) {
                     clearInterval(timer);
                     if (btn.tagName === 'VIDEO') {
                         btn.play();
                     } else {
+                        // 触发点击，此时 window.open 已被废，所有弹窗广告全部哑火！
                         btn.click();
                     }
                 }
-            }, 500);
-            setTimeout(function() { clearInterval(timer); }, 10000);
+            }, 300);
+            
+            setTimeout(function() { clearInterval(timer); }, 12000);
         })();
         """
         return result

@@ -8,7 +8,11 @@
       "name": "ETV",
       "type": 3,
       "api": "csp_Douban",
-      "searchable": 0
+      "searchable": 0,
+      "style": {
+        "type": "rect",
+        "ratio": 1.618
+      }
     },
     {
       "key": "配置中心",
@@ -87,9 +91,8 @@
       "jar": "https://file.icve.com.cn/file_doc/868/18/D93049BA6615EAB01B69A52FF03C02C9.png;md5;d93049ba6615eab01b69a52ff03c02c9",
       "api": "csp_AppV7Amns",
       "searchable": 1,
-      "quickSearch": 1,
-      "changeable": 1,
-      "filterable": 1,
+      "quickSearch": 0,
+      "filterable": 0,
       "ext": "AppV7Fz"
     }
   ],

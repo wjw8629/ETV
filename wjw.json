@@ -8,11 +8,7 @@
       "name": "ETV",
       "type": 3,
       "api": "csp_Douban",
-      "searchable": 0,
-      "style": {
-        "type": "rect",
-        "ratio": 1.618
-      }
+      "searchable": 0
     },
     {
       "key": "配置中心",

@@ -80,6 +80,14 @@
       "filterable": 0,
       "ext": "https://y2s52n7.com,https://m.hkybqufgh.com,https://m.sizhengxt.com,https://m.9zhoukj.com,https://m.sizhengxt.com,https://m.jiabaide.cn"
     },
+    {"key": "瓜子体育",
+     "name": "瓜子 • 体育","type": 3,
+     "api": "csp_SportsGuazi",
+     "searchable": 0,
+     "quickSearch": 0,
+     "changeable": 0,
+     "style": {"type": "list"}
+    },
     {
       "name": "嗷呜①线",
       "key": "AppV7Fz",

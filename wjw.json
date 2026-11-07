@@ -98,6 +98,10 @@
       "type": "0",
       "url": "./others/live.txt"
 }
+{"name": "BestFan",
+      "type": "0",
+      "url": "https://github.com/best-fan/iptv-sources/blob/main/cn_cctv.m3u8"
+},
   ],
   "parses": [
     {

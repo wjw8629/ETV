@@ -90,17 +90,17 @@
     }
   ],
   "lives": [
-    {"name": "CCTV",
+    {"name": "Migu",
       "type": "0",
       "url": "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
 },
-{"name": "TEMP",
+{"name": "Backup",
       "type": "0",
       "url": "./others/live.txt"
 },
 {"name": "BestFan",
       "type": "0",
-      "url": "https://github.com/best-fan/iptv-sources/blob/main/cn_cctv.m3u8"
+      "url": "https://raw.githubusercontent.com/best-fan/iptv-sources/refs/heads/main/cn_cctv.m3u8"
 }
   ],
   "parses": [

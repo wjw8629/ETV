@@ -1,3 +1,6 @@
 https://github.com/ioptu/migu_video
 
 https://github.com/qist/tvbox
+
+
+https://raw.githubusercontent.com/best-fan/iptv-sources/refs/heads/main/cn_cctv.m3u8

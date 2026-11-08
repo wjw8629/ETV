@@ -22,6 +22,7 @@ jobs:
       uses: nick-fields/retry@v4
       env:
         PYTHONDONTWRITEBYTECODE: "1"
+        MIGU_UPDATE_TRIGGER_URL: ${{ vars.MIGU_UPDATE_TRIGGER_URL }}
       with:
         timeout_minutes: 5    # 单次尝试如果超过 5 分钟就判定为超时
         max_attempts: 2       # 超时后重试 1 次 

@@ -92,7 +92,7 @@
   "lives": [
     {"name": "Migu",
       "type": "0",
-      "url": "https://raw.githubusercontent.com/ioptu/migu_video/refs/heads/main/cctv.migu.m3u"
+      "url": "./others/cctv.migu.m3u"
 },
 {"name": "Backup",
       "type": "0",

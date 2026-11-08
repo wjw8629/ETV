@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 import re
 import time
 import random
@@ -38,12 +39,8 @@ LIVE = {
     '热门': 'e7716fea6aa1483c80cfc10b7795fcb8',
     '体育': '7538163cdac044398cb292ecf75db4e0',
     '央视': '1ff892f2b5ab4a79be6e25b69d2f5d05',
-    '卫视': '0847b3f6c08a4ca28f85ba5701268424',
-    '地方': '855e9adc91b04ea18ef3f2dbd43f495b',
     '影视': '10b0d04cb23d4ac5945c4bc77c7ac44e',
     '新闻': 'c584f67ad63f4bc983c31de3a9be977c',
-    '教育': 'af72267483d94275995a4498b2799ecd',
-    '熊猫': 'e76e56e88fff4c11b0168f55e826445d',
     '综艺': '192a12edfef04b5eb616b878f031f32f',
     '少儿': 'fc2f5b8fd7db43ff88c4243e731ecede',
     '纪实': 'e1165138bdaa44b9a3138d74af6c6673'
@@ -51,6 +48,10 @@ LIVE = {
 lives = list(LIVE)
 
 output_path = Path(__file__).resolve().parent / 'cctv.migu.m3u'
+update_trigger_url = (
+    os.environ.get('MIGU_UPDATE_TRIGGER_URL', '').strip()
+    or 'https://migu.evan8629.workers.dev/refresh'
+)
 appVersion = "2600034600"
 All_Live = []
 FLAG = 0
@@ -378,7 +379,7 @@ def update_group_title(extinf):
     extinf = re.sub(r'\s*group-title="[^"]*"', '', extinf)
     if ',' in extinf:
         metadata, name = extinf.rsplit(',', 1)
-        extinf = f'{metadata.strip()},group-title="央视",{name.strip()}'
+        extinf = f'{metadata.strip()},group-title="CCTV",{name.strip()}'
     return extinf.strip()
 
 
@@ -391,7 +392,8 @@ def simplify_cctv_name(extinf):
     channel_id = f"CCTV{match.group(1)}{'+' if match.group(2) else ''}"
     extinf = re.sub(r'tvg-id="[^"]*"', f'tvg-id="{channel_id}"', extinf)
     extinf = re.sub(r'tvg-name="[^"]*"', f'tvg-name="{channel_id}"', extinf)
-    return re.sub(r',.+$', f',{channel_id}', extinf)
+    metadata, _ = extinf.rsplit(',', 1)
+    return f'{metadata},{channel_id}'
 
 
 def build_cctv_playlist(channel_contents):
@@ -418,6 +420,13 @@ def build_cctv_playlist(channel_contents):
     output_lines = ["#EXTM3U", "", "# ================================== 央视 CCTV 频道 ==================================", ""]
     for extinf, url in channels:
         output_lines.extend((simplify_cctv_name(update_group_title(extinf)), url, ""))
+
+    if update_trigger_url:
+        output_lines.extend((
+            '#EXTINF:-1 tvg-id="MIGU-UPDATE" tvg-name="Update" group-title="Update",Update Migu',
+            update_trigger_url,
+            "",
+        ))
 
     print(f"最终 CCTV 频道数：{len(channels)}")
     return "\n".join(output_lines)

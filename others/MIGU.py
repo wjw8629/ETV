@@ -1,6 +1,5 @@
 import requests
 import json
-import os
 import re
 import time
 import random
@@ -48,10 +47,6 @@ LIVE = {
 lives = list(LIVE)
 
 output_path = Path(__file__).resolve().parent / 'cctv.migu.m3u'
-update_trigger_url = (
-    os.environ.get('MIGU_UPDATE_TRIGGER_URL', '').strip()
-    or 'https://migu.evan8629.workers.dev/refresh'
-)
 appVersion = "2600034600"
 All_Live = []
 FLAG = 0
@@ -420,13 +415,6 @@ def build_cctv_playlist(channel_contents):
     output_lines = ["#EXTM3U", "", "# ================================== 央视 CCTV 频道 ==================================", ""]
     for extinf, url in channels:
         output_lines.extend((simplify_cctv_name(update_group_title(extinf)), url, ""))
-
-    if update_trigger_url:
-        output_lines.extend((
-            '#EXTINF:-1 tvg-id="MIGU-UPDATE" tvg-name="Update" group-title="Update",Update Migu',
-            update_trigger_url,
-            "",
-        ))
 
     print(f"最终 CCTV 频道数：{len(channels)}")
     return "\n".join(output_lines)

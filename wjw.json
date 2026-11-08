@@ -70,14 +70,14 @@
     }
   ],
   "lives": [
+    {"name": "CCTV",
+      "type": "0",
+      "url": "./others/live.txt"
+    },
     {"name": "Migu",
       "type": "0",
       "url": "./others/cctv.migu.m3u"
-},
-{"name": "Backup",
-      "type": "0",
-      "url": "./others/live.txt"
-}
+    }
   ],
   "parses": [
     {

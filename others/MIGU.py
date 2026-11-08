@@ -50,7 +50,7 @@ LIVE = {
 }
 lives = list(LIVE)
 
-path = Path(__file__).resolve().parent / 'mig.m3u'
+output_path = Path(__file__).resolve().parent / 'cctv.migu.m3u'
 appVersion = "2600034600"
 All_Live = []
 FLAG = 0
@@ -69,16 +69,6 @@ def is_target_cctv(name):
     if not isinstance(name, str) or any(keyword in name for keyword in ("欧洲", "美洲")):
         return False
     return re.search(r"CCTV\s*-?\s*(?:1[0-7]|[1-9])\s*\+?(?!\d)", name, re.IGNORECASE) is not None
-
-
-def writefile(path, content):
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-
-def appendfile(path, content):
-    with open(path, 'a+', encoding='utf-8') as f:
-        f.write(content)
 
 
 def md5(text):
@@ -363,26 +353,92 @@ def update(live, url):
         
     pool.shutdown()
 
+
+def get_channel_name(extinf):
+    return extinf.rsplit(',', 1)[-1].strip()
+
+
+def is_cctv_channel(extinf):
+    name = get_channel_name(extinf)
+    excluded_names = ("美洲", "欧洲", "CGTN", "老故事", "发现之旅", "中学生")
+    if any(keyword in name for keyword in excluded_names):
+        return False
+    return re.search(r'CCTV\s*-?\s*(?:1[0-7]|[1-9])\s*\+?(?!\d)', name, re.IGNORECASE) is not None
+
+
+def cctv_sort_key(channel):
+    name = get_channel_name(channel[0])
+    match = re.search(r'CCTV\s*-?\s*(1[0-7]|[1-9])\s*(\+)?', name, re.IGNORECASE)
+    if not match:
+        return (99, 0, name.lower())
+    return (int(match.group(1)), 1 if match.group(2) else 0, name.lower())
+
+
+def update_group_title(extinf):
+    extinf = re.sub(r'\s*group-title="[^"]*"', '', extinf)
+    if ',' in extinf:
+        metadata, name = extinf.rsplit(',', 1)
+        extinf = f'{metadata.strip()},group-title="央视",{name.strip()}'
+    return extinf.strip()
+
+
+def simplify_cctv_name(extinf):
+    name = get_channel_name(extinf)
+    match = re.search(r'CCTV\s*-?\s*(1[0-7]|[1-9])\s*(\+)?', name, re.IGNORECASE)
+    if not match:
+        return extinf
+
+    channel_id = f"CCTV{match.group(1)}{'+' if match.group(2) else ''}"
+    extinf = re.sub(r'tvg-id="[^"]*"', f'tvg-id="{channel_id}"', extinf)
+    extinf = re.sub(r'tvg-name="[^"]*"', f'tvg-name="{channel_id}"', extinf)
+    return re.sub(r',.+$', f',{channel_id}', extinf)
+
+
+def build_cctv_playlist(channel_contents):
+    channels = []
+    seen = set()
+    for content in channel_contents:
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        if len(lines) < 2 or not lines[0].startswith('#EXTINF:'):
+            continue
+
+        extinf, url = lines[0], lines[-1]
+        if not is_cctv_channel(extinf):
+            continue
+
+        tvg_id = re.search(r'tvg-id="([^"]+)"', extinf)
+        tvg_name = re.search(r'tvg-name="([^"]+)"', extinf)
+        key = (tvg_id.group(1) if tvg_id else "") or (tvg_name.group(1) if tvg_name else "") or extinf
+        if key in seen:
+            continue
+        seen.add(key)
+        channels.append((extinf, url))
+
+    channels.sort(key=cctv_sort_key)
+    output_lines = ["#EXTM3U", "", "# ================================== 央视 CCTV 频道 ==================================", ""]
+    for extinf, url in channels:
+        output_lines.extend((simplify_cctv_name(update_group_title(extinf)), url, ""))
+
+    print(f"最终 CCTV 频道数：{len(channels)}")
+    return "\n".join(output_lines)
+
+
 def main():
-    # 使用 r'...' 原始字符串，完美保留你的预期内容，且绝对不会触发转义警告
-    m3u_header = (
-        r'#EXTM3U x-tvg-url="https://gh-proxy.com/https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/playback.xml,https://hk.gh-proxy.org/raw.githubusercontent.com/develop202/migu_video/refs/heads/main/playback.xml,https://develop202.github.io/migu_video/playback.xml,https://raw.githubusercontents.com/develop202/migu_video/refs/heads/main/playback.xml" '
-        r'catchup="append" catchup-source="&playbackbegin=${(b)yyyyMMddHHmmss}&playbackend=${(e)yyyyMMddHHmmss}"'
-        '\n'
-    )
-    
-    writefile(path, m3u_header)
+    global All_Live, FLAG
+    All_Live = []
+    FLAG = 0
+    with cache_lock:
+        url_cache.clear()
     
     for live in lives:
         print(f"\n分类 ----- [{live}] ----- 开始更新...")
         url = f'https://program-sc.miguvideo.com/live/v2/tv-data/{LIVE[live]}'
         update(live, url)
     
-    for content in All_Live:
-        if content:
-            appendfile(path, content)
-    
-    print("\n全部更新完成！m3u 文件已生成：", path)
+    playlist = build_cctv_playlist(content for content in All_Live if content)
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        output_file.write(playlist)
+    print("\n全部更新完成！M3U 文件已生成：", output_path)
 
 
 if __name__ == "__main__":
